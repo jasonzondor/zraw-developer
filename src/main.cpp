@@ -102,10 +102,8 @@ int runHeadless(const zraw::CLIHandler::Options& options) {
     return 0;
 }
 
-// GUI mode
-int runGUI(int argc, char* argv[], const zraw::CLIHandler::Options& options) {
-    QApplication app(argc, argv);
-    
+// GUI mode (app already created in main)
+int runGUI(const zraw::CLIHandler::Options& options) {
     // Set OpenGL format
     QSurfaceFormat format;
     format.setVersion(3, 3);
@@ -125,10 +123,12 @@ int runGUI(int argc, char* argv[], const zraw::CLIHandler::Options& options) {
         }
     }
     
-    return app.exec();
+    return qApp->exec();
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << "Starting ZRaw Developer..." << std::endl;
+    
     QCoreApplication::setApplicationName("ZRaw Developer");
     QCoreApplication::setApplicationVersion("0.1.0");
     
@@ -142,6 +142,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (isHeadless) {
+        std::cout << "Running in headless mode" << std::endl;
         // Headless mode - use QCoreApplication
         QCoreApplication app(argc, argv);
         
@@ -153,20 +154,25 @@ int main(int argc, char* argv[]) {
         
         return runHeadless(cli.options());
     } else {
+        std::cout << "Running in GUI mode" << std::endl;
         // GUI mode or help - use QApplication
         QApplication app(argc, argv);
         
+        std::cout << "Parsing command line..." << std::endl;
         zraw::CLIHandler cli;
         if (!cli.parse(QCoreApplication::arguments())) {
             std::cerr << cli.helpText().toStdString() << std::endl;
             return 1;
         }
         
+        std::cout << "Command line parsed" << std::endl;
+        
         if (cli.helpRequested()) {
             std::cout << cli.helpText().toStdString() << std::endl;
             return 0;
         }
         
-        return runGUI(argc, argv, cli.options());
+        std::cout << "Starting GUI..." << std::endl;
+        return runGUI(cli.options());
     }
 }

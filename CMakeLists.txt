@@ -31,6 +31,7 @@ set(SOURCES
     src/core/ImageBuffer.cpp
     src/core/CLIHandler.cpp
     src/core/ImageExporter.cpp
+    src/core/XMPHandler.cpp
     src/gpu/GLContext.cpp
     src/gpu/ShaderProgram.cpp
     src/gpu/GPUPipeline.cpp
@@ -47,6 +48,7 @@ set(HEADERS
     src/core/ImageBuffer.h
     src/core/CLIHandler.h
     src/core/ImageExporter.h
+    src/core/XMPHandler.h
     src/gpu/GLContext.h
     src/gpu/ShaderProgram.h
     src/gpu/GPUPipeline.h

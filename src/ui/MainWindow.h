@@ -3,10 +3,12 @@
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QStatusBar>
+#include <QTimer>
 #include <memory>
 #include "ImageViewer.h"
 #include "AdjustmentPanel.h"
 #include "../core/RawProcessor.h"
+#include "../core/XMPHandler.h"
 #include "../gpu/GPUPipeline.h"
 
 namespace zraw {
@@ -37,13 +39,19 @@ private:
     
     std::shared_ptr<RawProcessor> m_rawProcessor;
     std::shared_ptr<GPUPipeline> m_gpuPipeline;
+    std::shared_ptr<XMPHandler> m_xmpHandler;
     
     QString m_currentFile;
+    bool m_loadingXMP;  // Flag to prevent saving while loading
+    QTimer* m_xmpSaveTimer;  // Timer for debounced XMP saving
     
     void createUI();
     void createMenus();
     void updateImage();
     bool processRawFile(const QString& filepath);
+    void loadXMPAdjustments();
+    void saveXMPAdjustments();
+    void scheduleXMPSave();  // Schedule a debounced save
 };
 
 } // namespace zraw

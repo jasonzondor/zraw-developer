@@ -122,6 +122,12 @@ void ImageViewer::initializeGL() {
 }
 
 void ImageViewer::paintGL() {
+    static bool firstPaint = true;
+    if (firstPaint) {
+        std::cout << "ImageViewer::paintGL() called" << std::endl;
+        firstPaint = false;
+    }
+    
     qreal dpr = devicePixelRatio();
     
     // Clear the entire window first (for letterboxing) - use physical pixels
@@ -136,7 +142,11 @@ void ImageViewer::paintGL() {
                       m_viewportWidth * dpr, m_viewportHeight * dpr);
             
             renderTexture(texture);
+        } else {
+            std::cout << "No texture from pipeline!" << std::endl;
         }
+    } else {
+        std::cout << "No pipeline set!" << std::endl;
     }
 }
 

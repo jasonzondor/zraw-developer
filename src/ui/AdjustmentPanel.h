@@ -16,6 +16,16 @@ class AdjustmentPanel : public QWidget {
 public:
     explicit AdjustmentPanel(QWidget* parent = nullptr);
     ~AdjustmentPanel();
+    
+    // Getters for current values
+    float exposure() const;
+    float contrast() const;
+    float sharpness() const;
+    
+    // Setters to update UI (without triggering signals)
+    void setExposure(float value);
+    void setContrast(float value);
+    void setSharpness(float value);
 
 signals:
     void exposureChanged(float value);

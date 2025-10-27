@@ -91,4 +91,39 @@ void AdjustmentPanel::updateSharpnessLabel(int value) {
     m_sharpnessLabel->setText(QString::number(fValue, 'f', 2));
 }
 
+// Getters
+float AdjustmentPanel::exposure() const {
+    return m_exposureSlider->value() / 100.0f;
+}
+
+float AdjustmentPanel::contrast() const {
+    return m_contrastSlider->value() / 100.0f;
+}
+
+float AdjustmentPanel::sharpness() const {
+    return m_sharpnessSlider->value() / 100.0f;
+}
+
+// Setters (block signals to prevent triggering changes)
+void AdjustmentPanel::setExposure(float value) {
+    m_exposureSlider->blockSignals(true);
+    m_exposureSlider->setValue(static_cast<int>(value * 100));
+    updateExposureLabel(m_exposureSlider->value());
+    m_exposureSlider->blockSignals(false);
+}
+
+void AdjustmentPanel::setContrast(float value) {
+    m_contrastSlider->blockSignals(true);
+    m_contrastSlider->setValue(static_cast<int>(value * 100));
+    updateContrastLabel(m_contrastSlider->value());
+    m_contrastSlider->blockSignals(false);
+}
+
+void AdjustmentPanel::setSharpness(float value) {
+    m_sharpnessSlider->blockSignals(true);
+    m_sharpnessSlider->setValue(static_cast<int>(value * 100));
+    updateSharpnessLabel(m_sharpnessSlider->value());
+    m_sharpnessSlider->blockSignals(false);
+}
+
 } // namespace zraw
