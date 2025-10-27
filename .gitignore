@@ -36,3 +36,6 @@ Thumbs.db
 
 # Compile commands
 compile_commands.json
+
+# temporary files
+tmp/

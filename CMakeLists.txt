@@ -29,6 +29,8 @@ set(SOURCES
     src/main.cpp
     src/core/RawProcessor.cpp
     src/core/ImageBuffer.cpp
+    src/core/CLIHandler.cpp
+    src/core/ImageExporter.cpp
     src/gpu/GLContext.cpp
     src/gpu/ShaderProgram.cpp
     src/gpu/GPUPipeline.cpp
@@ -43,6 +45,8 @@ set(SOURCES
 set(HEADERS
     src/core/RawProcessor.h
     src/core/ImageBuffer.h
+    src/core/CLIHandler.h
+    src/core/ImageExporter.h
     src/gpu/GLContext.h
     src/gpu/ShaderProgram.h
     src/gpu/GPUPipeline.h
