@@ -37,17 +37,22 @@ git commit -m "chore: add GitHub workflows and contribution guidelines"
 git push origin main
 ```
 
-### 2. Enable Branch Protection on GitHub
+### 2. Enable Branch Protection on GitHub (Using Rulesets)
 
-Go to: **Settings → Branches → Add rule**
+Go to: **Settings → Rules → Rulesets → New ruleset**
 
-**For `main` branch:**
-- ✅ Require pull request before merging (1 approval)
-- ✅ Require status checks (select `build`)
+**Create ruleset for `main` branch:**
+- Name: `Protect main branch`
+- Target: `main`
+- ✅ Require pull request (1 approval)
+- ✅ Require status checks (`build`)
 - ✅ Require conversation resolution
-- ✅ Do not allow bypassing
+- ✅ Block force pushes
+- ✅ Restrict deletions
 
-Click **Create** or **Save**
+Click **Create**
+
+**Detailed guide:** See `GITHUB_RULESET_SETUP.md`
 
 ### 3. Create Your First Release
 
