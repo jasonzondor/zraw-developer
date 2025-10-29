@@ -46,7 +46,7 @@ void MainWindow::createUI() {
     
     // Image viewer (left side)
     m_viewer = new ImageViewer();
-    m_viewer->setMinimumSize(800, 600);
+    m_viewer->setMinimumSize(400, 300);  // Reduced minimum size
     splitter->addWidget(m_viewer);
     
     // Adjustment panel (right side)
@@ -60,6 +60,9 @@ void MainWindow::createUI() {
     splitter->setStretchFactor(1, 1);
     
     setCentralWidget(splitter);
+    
+    // Set minimum window size to prevent overlap
+    setMinimumSize(650, 400);  // 400 (viewer min) + 150 (panel min) + margins
     
     // Connect adjustment signals
     connect(m_adjustmentPanel, &AdjustmentPanel::exposureChanged,
