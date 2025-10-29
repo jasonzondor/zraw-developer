@@ -266,11 +266,13 @@ QWidget* AdjustmentPanel::createSliderRow(const QString& name, QSlider** slider,
     
     rowLayout->addWidget(topRow);
     
-    // Slider
-    *slider = new QSlider(Qt::Horizontal);
-    (*slider)->setMinimum(min);
-    (*slider)->setMaximum(max);
-    (*slider)->setValue(defaultVal);
+    // Slider (with double-click reset support)
+    auto* resettableSlider = new ResettableSlider(Qt::Horizontal);
+    resettableSlider->setMinimum(min);
+    resettableSlider->setMaximum(max);
+    resettableSlider->setValue(defaultVal);
+    resettableSlider->setDefaultValue(defaultVal);
+    *slider = resettableSlider;
     (*slider)->setStyleSheet(
         "QSlider::groove:horizontal {"
         "  background: #1a1a1a;"

@@ -41,6 +41,7 @@ set(SOURCES
     src/ui/MainWindow.cpp
     src/ui/ImageViewer.cpp
     src/ui/AdjustmentPanel.cpp
+    src/ui/ResettableSlider.cpp
 )
 
 set(HEADERS
@@ -58,6 +59,7 @@ set(HEADERS
     src/ui/MainWindow.h
     src/ui/ImageViewer.h
     src/ui/AdjustmentPanel.h
+    src/ui/ResettableSlider.h
 )
 
 # Create executable

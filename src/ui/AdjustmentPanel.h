@@ -6,6 +6,7 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QFrame>
+#include "ResettableSlider.h"
 
 namespace zraw {
 
