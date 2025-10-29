@@ -105,6 +105,7 @@ sudo make install
 - [x] Local contrast
 - [ ] Tone curves
 - [ ] Color grading
+- [ ] Chromatic aberration
 
 ### Phase 3
 - [ ] Lens corrections

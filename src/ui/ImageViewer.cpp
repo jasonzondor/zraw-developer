@@ -15,6 +15,7 @@ out vec2 TexCoord;
 
 uniform float zoom;
 uniform vec2 panOffset;
+uniform vec2 aspectRatio;  // x = image aspect, y = viewport aspect
 
 void main() {
     // Pass through position (fills viewport)
@@ -25,6 +26,17 @@ void main() {
     
     // Center around 0.5
     tc -= 0.5;
+    
+    // Apply aspect ratio correction to fill viewport while maintaining image aspect
+    // If viewport is wider than image, scale horizontally
+    // If viewport is taller than image, scale vertically
+    if (aspectRatio.y > aspectRatio.x) {
+        // Viewport is wider - scale texture coordinates horizontally
+        tc.x *= aspectRatio.y / aspectRatio.x;
+    } else {
+        // Viewport is taller - scale texture coordinates vertically
+        tc.y *= aspectRatio.x / aspectRatio.y;
+    }
     
     // Apply zoom (divide to zoom in on texture)
     tc /= zoom;
@@ -49,7 +61,7 @@ out vec4 FragColor;
 uniform sampler2D displayTexture;
 
 void main() {
-    // Discard pixels outside valid texture range when zoomed out
+    // Discard pixels outside valid texture range
     if (TexCoord.x < 0.0 || TexCoord.x > 1.0 || 
         TexCoord.y < 0.0 || TexCoord.y > 1.0) {
         discard;
@@ -151,41 +163,11 @@ void ImageViewer::paintGL() {
 }
 
 void ImageViewer::resizeGL(int w, int h) {
-    if (w == 0 || h == 0) {
-        m_viewportX = 0;
-        m_viewportY = 0;
-        m_viewportWidth = w;
-        m_viewportHeight = h;
-        return;
-    }
-    
-    if (!m_pipeline || m_pipeline->width() == 0 || m_pipeline->height() == 0) {
-        m_viewportX = 0;
-        m_viewportY = 0;
-        m_viewportWidth = w;
-        m_viewportHeight = h;
-        return;
-    }
-    
-    // Calculate aspect ratios
-    float imageAspect = static_cast<float>(m_pipeline->width()) / static_cast<float>(m_pipeline->height());
-    float windowAspect = static_cast<float>(w) / static_cast<float>(h);
-    
+    // Always use full viewport - zoom and aspect ratio handled in shader
     m_viewportX = 0;
     m_viewportY = 0;
     m_viewportWidth = w;
     m_viewportHeight = h;
-    
-    // Fit image to window while maintaining aspect ratio
-    if (windowAspect > imageAspect) {
-        // Window is wider than image - add letterboxing on sides
-        m_viewportWidth = static_cast<int>(static_cast<float>(h) * imageAspect);
-        m_viewportX = (w - m_viewportWidth) / 2;
-    } else {
-        // Window is taller than image - add letterboxing on top/bottom
-        m_viewportHeight = static_cast<int>(static_cast<float>(w) / imageAspect);
-        m_viewportY = (h - m_viewportHeight) / 2;
-    }
 }
 
 bool ImageViewer::createDisplayShader() {
@@ -240,10 +222,24 @@ bool ImageViewer::createDisplayShader() {
 void ImageViewer::renderTexture(GLuint texture) {
     glUseProgram(m_displayShader);
     
-    // Set zoom and pan uniforms
+    // Calculate aspect ratios
+    float imageAspect = 1.0f;
+    float viewportAspect = 1.0f;
+    
+    if (m_pipeline && m_pipeline->height() > 0) {
+        imageAspect = static_cast<float>(m_pipeline->width()) / static_cast<float>(m_pipeline->height());
+    }
+    
+    if (m_viewportHeight > 0) {
+        viewportAspect = static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight);
+    }
+    
+    // Set uniforms
     glUniform1f(glGetUniformLocation(m_displayShader, "zoom"), m_zoom);
     glUniform2f(glGetUniformLocation(m_displayShader, "panOffset"), 
                 m_panOffset.x(), m_panOffset.y());
+    glUniform2f(glGetUniformLocation(m_displayShader, "aspectRatio"),
+                imageAspect, viewportAspect);
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
