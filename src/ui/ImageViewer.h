@@ -3,6 +3,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 #include <QPointF>
+#include <QPushButton>
 #include "../gpu/GPUPipeline.h"
 #include <memory>
 
@@ -23,6 +24,9 @@ public:
     
     // View controls
     void resetView();
+    
+    // Before/After toggle
+    void setShowBefore(bool show);
 
 protected:
     void initializeGL() override;
@@ -56,9 +60,14 @@ private:
     int m_viewportWidth;
     int m_viewportHeight;
     
+    // Before/After state
+    bool m_showBefore;
+    QPushButton* m_beforeAfterButton;
+    
     bool createDisplayShader();
     void renderTexture(GLuint texture);
     void updateTransform();
+    void updateButtonPosition();
 };
 
 } // namespace zraw

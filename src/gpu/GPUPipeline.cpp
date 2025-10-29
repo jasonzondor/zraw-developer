@@ -589,8 +589,28 @@ void main() {
         color = applyWhiteBalance(color, temperature, tint);
     }
     
-    // 3. Exposure (linear space multiplication)
-    color *= pow(2.0, exposure);
+    // 3. Exposure with per-channel highlight compression
+    //    Apply exposure, then compress each channel independently
+    //    This prevents color shifts from differential clipping
+    if (abs(exposure) > 0.01) {
+        // Apply exposure
+        color *= pow(2.0, exposure);
+        
+        // Per-channel soft clipping to prevent color shifts
+        // This is key: compress R, G, B independently so they don't clip at different rates
+        const float threshold = 1.0;
+        const float shoulder = 0.2;  // Shoulder width for smooth rolloff
+        
+        for (int i = 0; i < 3; i++) {
+            if (color[i] > threshold) {
+                // Smooth shoulder compression
+                // Uses a modified Reinhard curve for gentle rolloff
+                float excess = color[i] - threshold;
+                float compressed = threshold + shoulder * (excess / (excess + shoulder));
+                color[i] = compressed;
+            }
+        }
+    }
     
     // 3.5. Whites and Blacks adjustment (tone curve adjustment)
     //      Whites: brightens/darkens the bright tones (above middle gray)
@@ -796,6 +816,7 @@ GPUPipeline::GPUPipeline()
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),
       m_whites(0.0f), m_blacks(0.0f),
       m_outputMode(0),  // Default to SDR
+      m_bypassAdjustments(false),
       m_vao(0), m_vbo(0) {
 }
 
@@ -882,7 +903,7 @@ bool GPUPipeline::uploadImage(std::shared_ptr<ImageBuffer> buffer) {
     m_width = buffer->width();
     m_height = buffer->height();
     
-    // Create texture
+    // Create input texture (for processing)
     m_inputTexture = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target2D);
     m_inputTexture->setFormat(QOpenGLTexture::RGB16_UNorm);
     m_inputTexture->setSize(m_width, m_height);
@@ -892,10 +913,38 @@ bool GPUPipeline::uploadImage(std::shared_ptr<ImageBuffer> buffer) {
     m_inputTexture->setMagnificationFilter(QOpenGLTexture::Linear);
     m_inputTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
     
+    // Create original texture (for before/after comparison)
+    // This stores the processed output with zero adjustments
+    m_originalTexture = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target2D);
+    m_originalTexture->setFormat(QOpenGLTexture::RGB16_UNorm);
+    m_originalTexture->setSize(m_width, m_height);
+    m_originalTexture->allocateStorage();
+    m_originalTexture->setMinificationFilter(QOpenGLTexture::Linear);
+    m_originalTexture->setMagnificationFilter(QOpenGLTexture::Linear);
+    m_originalTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
+    
     // Create framebuffer for output
     QOpenGLFramebufferObjectFormat format;
     format.setInternalTextureFormat(GL_RGB16);
     m_fbo = std::make_unique<QOpenGLFramebufferObject>(m_width, m_height, format);
+    
+    // Process once with zero adjustments to create the "original" reference
+    bool oldBypass = m_bypassAdjustments;
+    m_bypassAdjustments = true;
+    process();
+    
+    // Copy the framebuffer result to original texture
+    m_fbo->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_originalTexture->textureId());
+    // Use glCopyTexSubImage2D since we already allocated storage
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_width, m_height);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    m_fbo->release();
+    
+    m_bypassAdjustments = oldBypass;
+    
+    std::cout << "Created original texture: " << m_originalTexture->textureId() << std::endl;
     
     return true;
 }
@@ -960,6 +1009,10 @@ void GPUPipeline::setOutputMode(int mode) {
     m_outputMode = mode;
 }
 
+void GPUPipeline::setBypassAdjustments(bool bypass) {
+    m_bypassAdjustments = bypass;
+}
+
 bool GPUPipeline::process() {
     if (!m_inputTexture || !m_fbo) {
         std::cerr << "Pipeline not ready for processing" << std::endl;
@@ -979,22 +1032,22 @@ bool GPUPipeline::process() {
     // Use shader
     m_shader->bind();
     
-    // Set uniforms
+    // Set uniforms (bypass all adjustments if showing "before")
     m_shader->setUniform("inputTexture", 0);
-    m_shader->setUniform("exposure", m_exposure);
-    m_shader->setUniform("contrast", m_contrast);
-    m_shader->setUniform("sharpness", m_sharpness);
-    m_shader->setUniform("temperature", m_temperature);
-    m_shader->setUniform("tint", m_tint);
-    m_shader->setUniform("highlights", m_highlights);
-    m_shader->setUniform("shadows", m_shadows);
-    m_shader->setUniform("vibrance", m_vibrance);
-    m_shader->setUniform("saturation", m_saturation);
-    m_shader->setUniform("highlightContrast", m_highlightContrast);
-    m_shader->setUniform("midtoneContrast", m_midtoneContrast);
-    m_shader->setUniform("shadowContrast", m_shadowContrast);
-    m_shader->setUniform("whites", m_whites);
-    m_shader->setUniform("blacks", m_blacks);
+    m_shader->setUniform("exposure", m_bypassAdjustments ? 0.0f : m_exposure);
+    m_shader->setUniform("contrast", m_bypassAdjustments ? 0.0f : m_contrast);
+    m_shader->setUniform("sharpness", m_bypassAdjustments ? 0.0f : m_sharpness);
+    m_shader->setUniform("temperature", m_bypassAdjustments ? 0.0f : m_temperature);
+    m_shader->setUniform("tint", m_bypassAdjustments ? 0.0f : m_tint);
+    m_shader->setUniform("highlights", m_bypassAdjustments ? 0.0f : m_highlights);
+    m_shader->setUniform("shadows", m_bypassAdjustments ? 0.0f : m_shadows);
+    m_shader->setUniform("vibrance", m_bypassAdjustments ? 0.0f : m_vibrance);
+    m_shader->setUniform("saturation", m_bypassAdjustments ? 0.0f : m_saturation);
+    m_shader->setUniform("highlightContrast", m_bypassAdjustments ? 0.0f : m_highlightContrast);
+    m_shader->setUniform("midtoneContrast", m_bypassAdjustments ? 0.0f : m_midtoneContrast);
+    m_shader->setUniform("shadowContrast", m_bypassAdjustments ? 0.0f : m_shadowContrast);
+    m_shader->setUniform("whites", m_bypassAdjustments ? 0.0f : m_whites);
+    m_shader->setUniform("blacks", m_bypassAdjustments ? 0.0f : m_blacks);
     m_shader->setUniform("texelSize", 1.0f / m_width, 1.0f / m_height);
     m_shader->setUniform("outputMode", m_outputMode);
     
@@ -1034,7 +1087,15 @@ std::shared_ptr<ImageBuffer> GPUPipeline::downloadImage() {
 }
 
 GLuint GPUPipeline::getOutputTexture() const {
-    return m_fbo ? m_fbo->texture() : 0;
+    // Return original texture when showing "before", otherwise return processed output
+    if (m_bypassAdjustments && m_originalTexture) {
+        GLuint texId = m_originalTexture->textureId();
+        std::cout << "Returning original texture: " << texId << std::endl;
+        return texId;
+    }
+    GLuint texId = m_fbo ? m_fbo->texture() : 0;
+    std::cout << "Returning processed texture: " << texId << std::endl;
+    return texId;
 }
 
 } // namespace zraw

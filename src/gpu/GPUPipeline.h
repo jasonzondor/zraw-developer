@@ -48,6 +48,9 @@ public:
     // Output mode: 0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES
     void setOutputMode(int mode);
     
+    // Before/After toggle
+    void setBypassAdjustments(bool bypass);
+    
     // Process image with current settings
     bool process();
     
@@ -65,6 +68,7 @@ private:
     std::unique_ptr<GLContext> m_context;
     std::unique_ptr<ShaderProgram> m_shader;
     std::unique_ptr<QOpenGLTexture> m_inputTexture;
+    std::unique_ptr<QOpenGLTexture> m_originalTexture;  // Store original for before/after
     std::unique_ptr<QOpenGLFramebufferObject> m_fbo;
     
     int m_width;
@@ -88,6 +92,9 @@ private:
     
     // Output mode (0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES)
     int m_outputMode;
+    
+    // Before/After state
+    bool m_bypassAdjustments;
     
     // Vertex buffer for fullscreen quad
     GLuint m_vao;
