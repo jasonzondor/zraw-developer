@@ -660,53 +660,90 @@ void main() {
         color = lchToRGB(lch);
     }
     
-    // 8. Sharpening (should be near the end, in linear space)
-    if (sharpness > 0.001) {
-        vec3 blur = vec3(0.0);
-        blur += texture(inputTexture, TexCoord + vec2(-1, -1) * texelSize).rgb;
-        blur += texture(inputTexture, TexCoord + vec2( 0, -1) * texelSize).rgb * 2.0;
-        blur += texture(inputTexture, TexCoord + vec2( 1, -1) * texelSize).rgb;
-        blur += texture(inputTexture, TexCoord + vec2(-1,  0) * texelSize).rgb * 2.0;
-        blur += texture(inputTexture, TexCoord + vec2( 1,  0) * texelSize).rgb * 2.0;
-        blur += texture(inputTexture, TexCoord + vec2(-1,  1) * texelSize).rgb;
-        blur += texture(inputTexture, TexCoord + vec2( 0,  1) * texelSize).rgb * 2.0;
-        blur += texture(inputTexture, TexCoord + vec2( 1,  1) * texelSize).rgb;
-        blur /= 12.0;
-        
-        // Apply sharpening with luminance-based masking to avoid artifacts
-        float lumMask = luminance(color);
-        float sharpAmount = sharpness * (1.0 - smoothstep(0.9, 1.0, lumMask)); // Reduce in highlights
-        color = color + (color - blur) * sharpAmount;
-    }
-    
-    // 9. Output Transform (tone mapping + color space conversion)
-    //    Different modes for different display types
+    // 8. Output Transform (tone mapping + color space conversion)
+    //    Apply FIRST to get display-ready image, then sharpen
     
     if (outputMode == 3) {
         // Full ACES workflow (AP0 → RRT → ODT → sRGB)
-        // Most accurate, film-like rendering
         color = fullACESPipeline(max(color, 0.0));
         color = adaptiveGamutMap(color);
         
     } else if (outputMode == 1) {
         // HDR PQ (Perceptual Quantizer) for HDR10/Dolby Vision
-        // Tone map first, then encode to PQ
         color = acesToneMap(max(color, 0.0));
         color = adaptiveGamutMap(color);
-        color = linearToPQ(color * 100.0); // Scale to nits (100 nits for SDR content)
+        color = linearToPQ(color * 100.0);
         
     } else if (outputMode == 2) {
         // HDR HLG (Hybrid Log-Gamma) for broadcast
-        // Tone map first, then encode to HLG
         color = acesToneMap(max(color, 0.0));
         color = adaptiveGamutMap(color);
         color = linearToHLG(color);
         
     } else {
         // Default: SDR output (simplified ACES)
-        // Standard dynamic range for typical displays
         color = acesToneMap(max(color, 0.0));
         color = adaptiveGamutMap(color);
+    }
+    
+    // 9. RAW Sharpening (Deconvolution-based, halo-free)
+    //    Uses high-frequency enhancement in luminance only
+    if (sharpness > 0.001) {
+        // Convert to luminance for sharpening
+        float centerLum = luminance(color);
+        
+        // Sample 3x3 neighborhood in luminance
+        float l00 = luminance(texture(inputTexture, TexCoord + vec2(-1, -1) * texelSize).rgb);
+        float l01 = luminance(texture(inputTexture, TexCoord + vec2( 0, -1) * texelSize).rgb);
+        float l02 = luminance(texture(inputTexture, TexCoord + vec2( 1, -1) * texelSize).rgb);
+        float l10 = luminance(texture(inputTexture, TexCoord + vec2(-1,  0) * texelSize).rgb);
+        float l11 = centerLum;
+        float l12 = luminance(texture(inputTexture, TexCoord + vec2( 1,  0) * texelSize).rgb);
+        float l20 = luminance(texture(inputTexture, TexCoord + vec2(-1,  1) * texelSize).rgb);
+        float l21 = luminance(texture(inputTexture, TexCoord + vec2( 0,  1) * texelSize).rgb);
+        float l22 = luminance(texture(inputTexture, TexCoord + vec2( 1,  1) * texelSize).rgb);
+        
+        // Calculate local variance (measure of detail)
+        float mean = (l00 + l01 + l02 + l10 + l11 + l12 + l20 + l21 + l22) / 9.0;
+        float variance = (
+            pow(l00 - mean, 2.0) + pow(l01 - mean, 2.0) + pow(l02 - mean, 2.0) +
+            pow(l10 - mean, 2.0) + pow(l11 - mean, 2.0) + pow(l12 - mean, 2.0) +
+            pow(l20 - mean, 2.0) + pow(l21 - mean, 2.0) + pow(l22 - mean, 2.0)
+        ) / 9.0;
+        
+        // Detail mask: sharpen high-variance areas (edges/details), not flat areas
+        float detailMask = smoothstep(0.0001, 0.001, variance);
+        
+        // High-pass filter (extracts fine detail)
+        // Gaussian blur approximation
+        float blurred = (
+            l00 * 0.0625 + l01 * 0.125 + l02 * 0.0625 +
+            l10 * 0.125  + l11 * 0.25  + l12 * 0.125 +
+            l20 * 0.0625 + l21 * 0.125 + l22 * 0.0625
+        );
+        
+        // Extract high-frequency detail
+        float detail = l11 - blurred;
+        
+        // Adaptive sharpening amount based on local contrast
+        float localContrast = max(max(abs(l11 - l01), abs(l11 - l21)), 
+                                  max(abs(l11 - l10), abs(l11 - l12)));
+        float adaptiveAmount = mix(0.5, 1.0, smoothstep(0.01, 0.1, localContrast));
+        
+        // Protection masks
+        float highlightProtection = 1.0 - smoothstep(0.9, 1.0, centerLum);
+        float shadowProtection = smoothstep(0.02, 0.1, centerLum);
+        
+        // Apply sharpening to luminance
+        float sharpenAmount = sharpness * 0.5 * detailMask * adaptiveAmount * 
+                             highlightProtection * shadowProtection;
+        float sharpenedLum = centerLum + detail * sharpenAmount;
+        sharpenedLum = max(sharpenedLum, 0.0);
+        
+        // Reconstruct color with sharpened luminance (preserves hue and saturation)
+        if (centerLum > 0.0001) {
+            color = color * (sharpenedLum / centerLum);
+        }
     }
     
     // 10. Final clamp to valid display range [0, 1]
