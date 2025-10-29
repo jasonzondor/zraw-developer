@@ -80,11 +80,26 @@ QString XMPHandler::generateXMP(const Adjustments& adjustments) {
     xmp += "        zraw:Exposure=\"" + QString::number(adjustments.exposure, 'f', 2) + "\"\n";
     xmp += "        zraw:Contrast=\"" + QString::number(adjustments.contrast, 'f', 2) + "\"\n";
     xmp += "        zraw:Sharpness=\"" + QString::number(adjustments.sharpness, 'f', 2) + "\"\n";
+    xmp += "        zraw:Temperature=\"" + QString::number(adjustments.temperature, 'f', 1) + "\"\n";
+    xmp += "        zraw:Tint=\"" + QString::number(adjustments.tint, 'f', 1) + "\"\n";
+    xmp += "        zraw:Highlights=\"" + QString::number(adjustments.highlights, 'f', 1) + "\"\n";
+    xmp += "        zraw:Shadows=\"" + QString::number(adjustments.shadows, 'f', 1) + "\"\n";
+    xmp += "        zraw:Vibrance=\"" + QString::number(adjustments.vibrance, 'f', 1) + "\"\n";
+    xmp += "        zraw:Saturation=\"" + QString::number(adjustments.saturation, 'f', 1) + "\"\n";
+    xmp += "        zraw:HighlightContrast=\"" + QString::number(adjustments.highlightContrast, 'f', 1) + "\"\n";
+    xmp += "        zraw:MidtoneContrast=\"" + QString::number(adjustments.midtoneContrast, 'f', 1) + "\"\n";
+    xmp += "        zraw:ShadowContrast=\"" + QString::number(adjustments.shadowContrast, 'f', 1) + "\"\n";
     
     // Camera Raw compatibility
     xmp += "        crs:Exposure2012=\"" + QString::number(adjustments.exposure, 'f', 2) + "\"\n";
     xmp += "        crs:Contrast2012=\"" + QString::number(adjustments.contrast * 100, 'f', 0) + "\"\n";
     xmp += "        crs:Sharpness=\"" + QString::number(adjustments.sharpness * 50, 'f', 0) + "\"\n";
+    xmp += "        crs:Temperature=\"" + QString::number(adjustments.temperature, 'f', 0) + "\"\n";
+    xmp += "        crs:Tint=\"" + QString::number(adjustments.tint, 'f', 0) + "\"\n";
+    xmp += "        crs:Highlights2012=\"" + QString::number(adjustments.highlights, 'f', 0) + "\"\n";
+    xmp += "        crs:Shadows2012=\"" + QString::number(adjustments.shadows, 'f', 0) + "\"\n";
+    xmp += "        crs:Vibrance=\"" + QString::number(adjustments.vibrance, 'f', 0) + "\"\n";
+    xmp += "        crs:Saturation=\"" + QString::number(adjustments.saturation, 'f', 0) + "\"\n";
     
     // XMP metadata
     xmp += "        xmp:ModifyDate=\"" + QDateTime::currentDateTime().toString(Qt::ISODate) + "\"\n";
@@ -120,6 +135,33 @@ XMPHandler::Adjustments XMPHandler::parseXMP(const QString& xmpContent) {
             if (attrs.hasAttribute("zraw:Sharpness")) {
                 adjustments.sharpness = attrs.value("zraw:Sharpness").toFloat();
             }
+            if (attrs.hasAttribute("zraw:Temperature")) {
+                adjustments.temperature = attrs.value("zraw:Temperature").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:Tint")) {
+                adjustments.tint = attrs.value("zraw:Tint").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:Highlights")) {
+                adjustments.highlights = attrs.value("zraw:Highlights").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:Shadows")) {
+                adjustments.shadows = attrs.value("zraw:Shadows").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:Vibrance")) {
+                adjustments.vibrance = attrs.value("zraw:Vibrance").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:Saturation")) {
+                adjustments.saturation = attrs.value("zraw:Saturation").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:HighlightContrast")) {
+                adjustments.highlightContrast = attrs.value("zraw:HighlightContrast").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:MidtoneContrast")) {
+                adjustments.midtoneContrast = attrs.value("zraw:MidtoneContrast").toFloat();
+            }
+            if (attrs.hasAttribute("zraw:ShadowContrast")) {
+                adjustments.shadowContrast = attrs.value("zraw:ShadowContrast").toFloat();
+            }
             
             // Fallback to Camera Raw format
             if (adjustments.exposure == 0.0f && attrs.hasAttribute("crs:Exposure2012")) {
@@ -131,11 +173,35 @@ XMPHandler::Adjustments XMPHandler::parseXMP(const QString& xmpContent) {
             if (adjustments.sharpness == 0.0f && attrs.hasAttribute("crs:Sharpness")) {
                 adjustments.sharpness = attrs.value("crs:Sharpness").toFloat() / 50.0f;
             }
+            if (adjustments.temperature == 0.0f && attrs.hasAttribute("crs:Temperature")) {
+                adjustments.temperature = attrs.value("crs:Temperature").toFloat();
+            }
+            if (adjustments.tint == 0.0f && attrs.hasAttribute("crs:Tint")) {
+                adjustments.tint = attrs.value("crs:Tint").toFloat();
+            }
+            if (adjustments.highlights == 0.0f && attrs.hasAttribute("crs:Highlights2012")) {
+                adjustments.highlights = attrs.value("crs:Highlights2012").toFloat();
+            }
+            if (adjustments.shadows == 0.0f && attrs.hasAttribute("crs:Shadows2012")) {
+                adjustments.shadows = attrs.value("crs:Shadows2012").toFloat();
+            }
+            if (adjustments.vibrance == 0.0f && attrs.hasAttribute("crs:Vibrance")) {
+                adjustments.vibrance = attrs.value("crs:Vibrance").toFloat();
+            }
+            if (adjustments.saturation == 0.0f && attrs.hasAttribute("crs:Saturation")) {
+                adjustments.saturation = attrs.value("crs:Saturation").toFloat();
+            }
             
             std::cout << "Loaded adjustments from XMP:" << std::endl;
             std::cout << "  Exposure: " << adjustments.exposure << std::endl;
             std::cout << "  Contrast: " << adjustments.contrast << std::endl;
             std::cout << "  Sharpness: " << adjustments.sharpness << std::endl;
+            std::cout << "  Temperature: " << adjustments.temperature << std::endl;
+            std::cout << "  Tint: " << adjustments.tint << std::endl;
+            std::cout << "  Highlights: " << adjustments.highlights << std::endl;
+            std::cout << "  Shadows: " << adjustments.shadows << std::endl;
+            std::cout << "  Vibrance: " << adjustments.vibrance << std::endl;
+            std::cout << "  Saturation: " << adjustments.saturation << std::endl;
             
             break;
         }

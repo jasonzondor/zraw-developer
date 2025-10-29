@@ -32,6 +32,15 @@ private slots:
     void onExposureChanged(float value);
     void onContrastChanged(float value);
     void onSharpnessChanged(float value);
+    void onTemperatureChanged(float value);
+    void onTintChanged(float value);
+    void onHighlightsChanged(float value);
+    void onShadowsChanged(float value);
+    void onVibranceChanged(float value);
+    void onSaturationChanged(float value);
+    void onHighlightContrastChanged(float value);
+    void onMidtoneContrastChanged(float value);
+    void onShadowContrastChanged(float value);
 
 private:
     ImageViewer* m_viewer;

@@ -12,16 +12,18 @@ namespace zraw {
 class XMPHandler {
 public:
     struct Adjustments {
-        float exposure = 0.0f;      // -3.0 to +3.0 EV
-        float contrast = 0.0f;      // -1.0 to +1.0
-        float sharpness = 0.0f;     // 0.0 to 2.0
-        
-        // Future adjustments
-        float temperature = 0.0f;   // White balance
-        float tint = 0.0f;
-        float saturation = 0.0f;
-        float highlights = 0.0f;
-        float shadows = 0.0f;
+        float exposure = 0.0f;           // -3.0 to +3.0 EV
+        float contrast = 0.0f;           // -1.0 to +1.0
+        float sharpness = 0.0f;          // 0.0 to 2.0
+        float temperature = 0.0f;        // -100 to +100
+        float tint = 0.0f;               // -100 to +100
+        float highlights = 0.0f;         // -100 to +100
+        float shadows = 0.0f;            // -100 to +100
+        float vibrance = 0.0f;           // -100 to +100
+        float saturation = 0.0f;         // -100 to +100
+        float highlightContrast = 0.0f;  // -100 to +100
+        float midtoneContrast = 0.0f;    // -100 to +100
+        float shadowContrast = 0.0f;     // -100 to +100
     };
     
     XMPHandler();

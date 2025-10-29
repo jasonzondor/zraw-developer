@@ -33,6 +33,15 @@ public:
     void setExposure(float exposure);
     void setContrast(float contrast);
     void setSharpness(float sharpness);
+    void setTemperature(float temperature);
+    void setTint(float tint);
+    void setHighlights(float highlights);
+    void setShadows(float shadows);
+    void setVibrance(float vibrance);
+    void setSaturation(float saturation);
+    void setHighlightContrast(float highlightContrast);
+    void setMidtoneContrast(float midtoneContrast);
+    void setShadowContrast(float shadowContrast);
     
     // Process image with current settings
     bool process();
@@ -60,6 +69,15 @@ private:
     float m_exposure;
     float m_contrast;
     float m_sharpness;
+    float m_temperature;
+    float m_tint;
+    float m_highlights;
+    float m_shadows;
+    float m_vibrance;
+    float m_saturation;
+    float m_highlightContrast;
+    float m_midtoneContrast;
+    float m_shadowContrast;
     
     // Vertex buffer for fullscreen quad
     GLuint m_vao;

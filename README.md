@@ -99,9 +99,10 @@ sudo make install
 - [ ] CLI interface
 
 ### Phase 2
-- [ ] White balance
-- [ ] Highlights/Shadows
-- [ ] Vibrance/Saturation
+- [x] White balance
+- [x] Highlights/Shadows
+- [x] Vibrance/Saturation
+- [x] Local contrast
 - [ ] Tone curves
 - [ ] Color grading
 

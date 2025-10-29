@@ -67,6 +67,24 @@ void MainWindow::createUI() {
             this, &MainWindow::onContrastChanged);
     connect(m_adjustmentPanel, &AdjustmentPanel::sharpnessChanged,
             this, &MainWindow::onSharpnessChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::temperatureChanged,
+            this, &MainWindow::onTemperatureChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::tintChanged,
+            this, &MainWindow::onTintChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::highlightsChanged,
+            this, &MainWindow::onHighlightsChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::shadowsChanged,
+            this, &MainWindow::onShadowsChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::vibranceChanged,
+            this, &MainWindow::onVibranceChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::saturationChanged,
+            this, &MainWindow::onSaturationChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::highlightContrastChanged,
+            this, &MainWindow::onHighlightContrastChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::midtoneContrastChanged,
+            this, &MainWindow::onMidtoneContrastChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::shadowContrastChanged,
+            this, &MainWindow::onShadowContrastChanged);
 }
 
 void MainWindow::createMenus() {
@@ -243,6 +261,105 @@ void MainWindow::onSharpnessChanged(float value) {
     }
 }
 
+void MainWindow::onTemperatureChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setTemperature(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onTintChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setTint(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onHighlightsChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setHighlights(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onShadowsChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setShadows(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onVibranceChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setVibrance(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onSaturationChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setSaturation(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onHighlightContrastChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setHighlightContrast(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onMidtoneContrastChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setMidtoneContrast(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onShadowContrastChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setShadowContrast(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
 void MainWindow::updateImage() {
     m_viewer->makeCurrent();
     m_gpuPipeline->process();
@@ -271,6 +388,15 @@ void MainWindow::loadXMPAdjustments() {
         m_gpuPipeline->setExposure(adjustments.exposure);
         m_gpuPipeline->setContrast(adjustments.contrast);
         m_gpuPipeline->setSharpness(adjustments.sharpness);
+        m_gpuPipeline->setTemperature(adjustments.temperature);
+        m_gpuPipeline->setTint(adjustments.tint);
+        m_gpuPipeline->setHighlights(adjustments.highlights);
+        m_gpuPipeline->setShadows(adjustments.shadows);
+        m_gpuPipeline->setVibrance(adjustments.vibrance);
+        m_gpuPipeline->setSaturation(adjustments.saturation);
+        m_gpuPipeline->setHighlightContrast(adjustments.highlightContrast);
+        m_gpuPipeline->setMidtoneContrast(adjustments.midtoneContrast);
+        m_gpuPipeline->setShadowContrast(adjustments.shadowContrast);
     }
     
     // Update UI sliders
@@ -278,6 +404,15 @@ void MainWindow::loadXMPAdjustments() {
         m_adjustmentPanel->setExposure(adjustments.exposure);
         m_adjustmentPanel->setContrast(adjustments.contrast);
         m_adjustmentPanel->setSharpness(adjustments.sharpness);
+        m_adjustmentPanel->setTemperature(adjustments.temperature);
+        m_adjustmentPanel->setTint(adjustments.tint);
+        m_adjustmentPanel->setHighlights(adjustments.highlights);
+        m_adjustmentPanel->setShadows(adjustments.shadows);
+        m_adjustmentPanel->setVibrance(adjustments.vibrance);
+        m_adjustmentPanel->setSaturation(adjustments.saturation);
+        m_adjustmentPanel->setHighlightContrast(adjustments.highlightContrast);
+        m_adjustmentPanel->setMidtoneContrast(adjustments.midtoneContrast);
+        m_adjustmentPanel->setShadowContrast(adjustments.shadowContrast);
     }
     
     m_loadingXMP = false;
@@ -307,6 +442,15 @@ void MainWindow::saveXMPAdjustments() {
     adjustments.exposure = m_adjustmentPanel->exposure();
     adjustments.contrast = m_adjustmentPanel->contrast();
     adjustments.sharpness = m_adjustmentPanel->sharpness();
+    adjustments.temperature = m_adjustmentPanel->temperature();
+    adjustments.tint = m_adjustmentPanel->tint();
+    adjustments.highlights = m_adjustmentPanel->highlights();
+    adjustments.shadows = m_adjustmentPanel->shadows();
+    adjustments.vibrance = m_adjustmentPanel->vibrance();
+    adjustments.saturation = m_adjustmentPanel->saturation();
+    adjustments.highlightContrast = m_adjustmentPanel->highlightContrast();
+    adjustments.midtoneContrast = m_adjustmentPanel->midtoneContrast();
+    adjustments.shadowContrast = m_adjustmentPanel->shadowContrast();
     
     m_xmpHandler->saveAdjustments(m_currentFile, adjustments);
 }
