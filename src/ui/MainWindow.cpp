@@ -51,7 +51,8 @@ void MainWindow::createUI() {
     
     // Adjustment panel (right side)
     m_adjustmentPanel = new AdjustmentPanel();
-    m_adjustmentPanel->setMaximumWidth(350);
+    m_adjustmentPanel->setMinimumWidth(150);
+    m_adjustmentPanel->setMaximumWidth(300);
     splitter->addWidget(m_adjustmentPanel);
     
     // Set splitter sizes
