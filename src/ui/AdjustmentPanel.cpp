@@ -16,37 +16,14 @@ void AdjustmentPanel::createUI() {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(10, 10, 10, 10);
     
-    // Exposure slider (-3.0 to +3.0, step 0.01)
-    auto* exposureGroup = createSliderGroup("Exposure", &m_exposureSlider, &m_exposureLabel,
-                                            -300, 300, 0);
-    layout->addWidget(exposureGroup);
+    // ========================================================================
+    // SECTION 1: WHITE BALANCE (First - corrects scene illuminant)
+    // ========================================================================
+    auto* wbLabel = new QLabel("<b>White Balance</b>");
+    wbLabel->setStyleSheet("QLabel { color: #888; margin-top: 5px; }");
+    layout->addWidget(wbLabel);
     
-    connect(m_exposureSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateExposureLabel(value);
-        emit exposureChanged(value / 100.0f);
-    });
-    
-    // Contrast slider (-1.0 to +1.0, step 0.01)
-    auto* contrastGroup = createSliderGroup("Contrast", &m_contrastSlider, &m_contrastLabel,
-                                            -100, 100, 0);
-    layout->addWidget(contrastGroup);
-    
-    connect(m_contrastSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateContrastLabel(value);
-        emit contrastChanged(value / 100.0f);
-    });
-    
-    // Sharpness slider (0.0 to 2.0, step 0.01)
-    auto* sharpnessGroup = createSliderGroup("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
-                                             0, 200, 0);
-    layout->addWidget(sharpnessGroup);
-    
-    connect(m_sharpnessSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateSharpnessLabel(value);
-        emit sharpnessChanged(value / 100.0f);
-    });
-    
-    // White Balance - Temperature slider (-100 to +100, step 1)
+    // Temperature slider (-100 to +100, step 1)
     auto* temperatureGroup = createSliderGroup("Temperature", &m_temperatureSlider, &m_temperatureLabel,
                                                -100, 100, 0);
     layout->addWidget(temperatureGroup);
@@ -56,7 +33,7 @@ void AdjustmentPanel::createUI() {
         emit temperatureChanged(static_cast<float>(value));
     });
     
-    // White Balance - Tint slider (-100 to +100, step 1)
+    // Tint slider (-100 to +100, step 1)
     auto* tintGroup = createSliderGroup("Tint", &m_tintSlider, &m_tintLabel,
                                         -100, 100, 0);
     layout->addWidget(tintGroup);
@@ -64,6 +41,23 @@ void AdjustmentPanel::createUI() {
     connect(m_tintSlider, &QSlider::valueChanged, this, [this](int value) {
         updateTintLabel(value);
         emit tintChanged(static_cast<float>(value));
+    });
+    
+    // ========================================================================
+    // SECTION 2: TONE (Exposure and tone recovery)
+    // ========================================================================
+    auto* toneLabel = new QLabel("<b>Tone</b>");
+    toneLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
+    layout->addWidget(toneLabel);
+    
+    // Exposure slider (-3.0 to +3.0, step 0.01)
+    auto* exposureGroup = createSliderGroup("Exposure", &m_exposureSlider, &m_exposureLabel,
+                                            -300, 300, 0);
+    layout->addWidget(exposureGroup);
+    
+    connect(m_exposureSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateExposureLabel(value);
+        emit exposureChanged(value / 100.0f);
     });
     
     // Highlights slider (-100 to +100, step 1)
@@ -86,24 +80,21 @@ void AdjustmentPanel::createUI() {
         emit shadowsChanged(static_cast<float>(value));
     });
     
-    // Vibrance slider (-100 to +100, step 1)
-    auto* vibranceGroup = createSliderGroup("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
+    // ========================================================================
+    // SECTION 3: CONTRAST (Global and local)
+    // ========================================================================
+    auto* contrastLabel = new QLabel("<b>Contrast</b>");
+    contrastLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
+    layout->addWidget(contrastLabel);
+    
+    // Global Contrast slider (-1.0 to +1.0, step 0.01)
+    auto* contrastGroup = createSliderGroup("Contrast", &m_contrastSlider, &m_contrastLabel,
                                             -100, 100, 0);
-    layout->addWidget(vibranceGroup);
+    layout->addWidget(contrastGroup);
     
-    connect(m_vibranceSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateVibranceLabel(value);
-        emit vibranceChanged(static_cast<float>(value));
-    });
-    
-    // Saturation slider (-100 to +100, step 1)
-    auto* saturationGroup = createSliderGroup("Saturation", &m_saturationSlider, &m_saturationLabel,
-                                              -100, 100, 0);
-    layout->addWidget(saturationGroup);
-    
-    connect(m_saturationSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateSaturationLabel(value);
-        emit saturationChanged(static_cast<float>(value));
+    connect(m_contrastSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateContrastLabel(value);
+        emit contrastChanged(value / 100.0f);
     });
     
     // Local Contrast - Highlights (-100 to +100, step 1)
@@ -134,6 +125,50 @@ void AdjustmentPanel::createUI() {
     connect(m_shadowContrastSlider, &QSlider::valueChanged, this, [this](int value) {
         updateShadowContrastLabel(value);
         emit shadowContrastChanged(static_cast<float>(value));
+    });
+    
+    // ========================================================================
+    // SECTION 4: COLOR (Saturation and vibrance)
+    // ========================================================================
+    auto* colorLabel = new QLabel("<b>Color</b>");
+    colorLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
+    layout->addWidget(colorLabel);
+    
+    // Vibrance slider (-100 to +100, step 1)
+    auto* vibranceGroup = createSliderGroup("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
+                                            -100, 100, 0);
+    layout->addWidget(vibranceGroup);
+    
+    connect(m_vibranceSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateVibranceLabel(value);
+        emit vibranceChanged(static_cast<float>(value));
+    });
+    
+    // Saturation slider (-100 to +100, step 1)
+    auto* saturationGroup = createSliderGroup("Saturation", &m_saturationSlider, &m_saturationLabel,
+                                              -100, 100, 0);
+    layout->addWidget(saturationGroup);
+    
+    connect(m_saturationSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateSaturationLabel(value);
+        emit saturationChanged(static_cast<float>(value));
+    });
+    
+    // ========================================================================
+    // SECTION 5: DETAIL (Sharpening - last step)
+    // ========================================================================
+    auto* detailLabel = new QLabel("<b>Detail</b>");
+    detailLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
+    layout->addWidget(detailLabel);
+    
+    // Sharpness slider (0.0 to 2.0, step 0.01)
+    auto* sharpnessGroup = createSliderGroup("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
+                                             0, 200, 0);
+    layout->addWidget(sharpnessGroup);
+    
+    connect(m_sharpnessSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateSharpnessLabel(value);
+        emit sharpnessChanged(value / 100.0f);
     });
     
     layout->addStretch();
