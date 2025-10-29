@@ -9,6 +9,7 @@
 #include "AdjustmentPanel.h"
 #include "../core/RawProcessor.h"
 #include "../core/XMPHandler.h"
+#include "../core/ImageExporter.h"
 #include "../gpu/GPUPipeline.h"
 
 namespace zraw {
@@ -51,6 +52,7 @@ private:
     std::shared_ptr<RawProcessor> m_rawProcessor;
     std::shared_ptr<GPUPipeline> m_gpuPipeline;
     std::shared_ptr<XMPHandler> m_xmpHandler;
+    std::shared_ptr<ImageExporter> m_imageExporter;
     
     QString m_currentFile;
     bool m_loadingXMP;  // Flag to prevent saving while loading

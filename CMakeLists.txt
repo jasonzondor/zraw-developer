@@ -17,11 +17,17 @@ find_package(PkgConfig REQUIRED)
 
 # Find LibRaw
 pkg_check_modules(LIBRAW REQUIRED libraw)
+include_directories(${LIBRAW_INCLUDE_DIRS})
+
+# Find libtiff
+pkg_check_modules(LIBTIFF REQUIRED libtiff-4)
+include_directories(${LIBTIFF_INCLUDE_DIRS})
 
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${LIBRAW_INCLUDE_DIRS}
+    ${LIBTIFF_INCLUDE_DIRS}
 )
 
 # Source files
@@ -74,6 +80,7 @@ target_link_libraries(zraw-developer
     Qt6::OpenGLWidgets
     OpenGL::GL
     ${LIBRAW_LIBRARIES}
+    ${LIBTIFF_LIBRARIES}
 )
 
 # Compiler flags

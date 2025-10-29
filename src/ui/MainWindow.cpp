@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget* parent)
       m_rawProcessor(std::make_shared<RawProcessor>()),
       m_gpuPipeline(std::make_shared<GPUPipeline>()),
       m_xmpHandler(std::make_shared<XMPHandler>()),
+      m_imageExporter(std::make_shared<ImageExporter>()),
       m_loadingXMP(false) {
     
     std::cout << "MainWindow constructor started" << std::endl;
@@ -212,7 +213,7 @@ void MainWindow::saveFile() {
         this,
         "Save Image",
         QString(),
-        "TIFF Files (*.tiff *.tif);;JPEG Files (*.jpg *.jpeg);;PNG Files (*.png)"
+        "TIFF 16-bit (*.tiff *.tif);;PNG 8-bit (*.png);;JPEG 8-bit (*.jpg *.jpeg)"
     );
     
     if (!filepath.isEmpty()) {
@@ -224,10 +225,22 @@ void MainWindow::saveFile() {
         m_viewer->doneCurrent();
         
         if (buffer) {
-            // TODO: Implement image saving
-            statusBar()->showMessage("Image saved to " + filepath);
+            // Determine format from file extension
+            auto format = ImageExporter::formatFromExtension(filepath);
+            
+            // Export with quality setting for JPEG
+            int quality = 95;  // High quality JPEG
+            if (m_imageExporter->exportImage(buffer, filepath, format, quality)) {
+                statusBar()->showMessage("Image saved to " + filepath);
+                QMessageBox::information(this, "Success", 
+                    "Image exported successfully to:\n" + filepath);
+            } else {
+                QMessageBox::critical(this, "Error", 
+                    "Failed to export image to:\n" + filepath);
+                statusBar()->showMessage("Failed to save image");
+            }
         } else {
-            QMessageBox::critical(this, "Error", "Failed to save image");
+            QMessageBox::critical(this, "Error", "Failed to download image from GPU");
             statusBar()->showMessage("Failed to save image");
         }
     }
