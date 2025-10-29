@@ -1,7 +1,9 @@
 #include "ImageExporter.h"
 #include <QImage>
+#include <QImageWriter>
 #include <QFileInfo>
 #include <iostream>
+#include <tiffio.h>
 
 namespace zraw {
 
@@ -60,20 +62,42 @@ ImageExporter::Format ImageExporter::formatFromString(const QString& formatStr) 
 }
 
 bool ImageExporter::exportTIFF(const std::shared_ptr<ImageBuffer>& buffer, const QString& filepath) {
-    // Qt doesn't support 16-bit TIFF writing directly, so we'll use 8-bit for now
-    // TODO: Use libtiff for proper 16-bit TIFF export
-    auto data8bit = convertTo8Bit(buffer);
-    
-    QImage image(data8bit.data(), buffer->width(), buffer->height(), 
-                 buffer->width() * 3, QImage::Format_RGB888);
-    
-    if (image.save(filepath, "TIFF")) {
-        std::cout << "Exported TIFF: " << filepath.toStdString() << std::endl;
-        return true;
+    // Use libtiff for proper 16-bit TIFF export
+    TIFF* tif = TIFFOpen(filepath.toStdString().c_str(), "w");
+    if (!tif) {
+        std::cerr << "Failed to open TIFF file for writing: " << filepath.toStdString() << std::endl;
+        return false;
     }
     
-    std::cerr << "Failed to export TIFF" << std::endl;
-    return false;
+    uint32_t width = buffer->width();
+    uint32_t height = buffer->height();
+    
+    // Set TIFF tags
+    TIFFSetField(tif, TIFFTAG_IMAGEWIDTH, width);
+    TIFFSetField(tif, TIFFTAG_IMAGELENGTH, height);
+    TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, 3);  // RGB
+    TIFFSetField(tif, TIFFTAG_BITSPERSAMPLE, 16);   // 16-bit per channel
+    TIFFSetField(tif, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+    TIFFSetField(tif, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);  // RGB RGB RGB...
+    TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+    TIFFSetField(tif, TIFFTAG_COMPRESSION, COMPRESSION_LZW);  // Lossless compression
+    TIFFSetField(tif, TIFFTAG_SOFTWARE, "ZRaw Developer");
+    
+    // Write image data row by row
+    const uint16_t* data = buffer->data();
+    size_t rowBytes = width * 3 * sizeof(uint16_t);
+    
+    for (uint32_t row = 0; row < height; ++row) {
+        if (TIFFWriteScanline(tif, (void*)(data + row * width * 3), row, 0) < 0) {
+            std::cerr << "Failed to write TIFF scanline " << row << std::endl;
+            TIFFClose(tif);
+            return false;
+        }
+    }
+    
+    TIFFClose(tif);
+    std::cout << "Exported 16-bit TIFF: " << filepath.toStdString() << std::endl;
+    return true;
 }
 
 bool ImageExporter::exportJPEG(const std::shared_ptr<ImageBuffer>& buffer, 
@@ -82,8 +106,9 @@ bool ImageExporter::exportJPEG(const std::shared_ptr<ImageBuffer>& buffer,
     
     QImage image(data8bit.data(), buffer->width(), buffer->height(), 
                  buffer->width() * 3, QImage::Format_RGB888);
+    QImage imageCopy = image.copy();  // Deep copy
     
-    if (image.save(filepath, "JPEG", quality)) {
+    if (imageCopy.save(filepath, "JPEG", quality)) {
         std::cout << "Exported JPEG: " << filepath.toStdString() 
                   << " (quality: " << quality << ")" << std::endl;
         return true;
@@ -98,8 +123,9 @@ bool ImageExporter::exportPNG(const std::shared_ptr<ImageBuffer>& buffer, const 
     
     QImage image(data8bit.data(), buffer->width(), buffer->height(), 
                  buffer->width() * 3, QImage::Format_RGB888);
+    QImage imageCopy = image.copy();  // Deep copy
     
-    if (image.save(filepath, "PNG")) {
+    if (imageCopy.save(filepath, "PNG")) {
         std::cout << "Exported PNG: " << filepath.toStdString() << std::endl;
         return true;
     }
