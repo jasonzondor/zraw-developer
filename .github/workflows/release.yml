@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          build-essential \
+          qt6-base-dev \
+          libraw-dev \
+          libgl1-mesa-dev \
+          libglu1-mesa-dev
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --parallel $(nproc)
+    
+    - name: Package binary
+      run: |
+        mkdir -p zraw-developer-${{ github.ref_name }}-linux-x64
+        cp build/zraw-developer zraw-developer-${{ github.ref_name }}-linux-x64/
+        cp README.md zraw-developer-${{ github.ref_name }}-linux-x64/
+        cp LICENSE zraw-developer-${{ github.ref_name }}-linux-x64/ || true
+        tar -czf zraw-developer-${{ github.ref_name }}-linux-x64.tar.gz zraw-developer-${{ github.ref_name }}-linux-x64/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          zraw-developer-${{ github.ref_name }}-linux-x64.tar.gz
+        body: |
+          ## ZRaw Developer ${{ github.ref_name }}
+          
+          ### Features
+          - Professional RAW processing with LibRaw
+          - GPU-accelerated editing pipeline (OpenGL)
+          - ACES color science workflow
+          - HDR output support (PQ/HLG)
+          - XMP sidecar support for non-destructive editing
+          
+          ### Installation
+          1. Extract the archive
+          2. Ensure dependencies are installed: `libraw`, `qt6-base`, `libgl1-mesa`
+          3. Run `./zraw-developer <raw-file>`
+          
+          ### What's New
+          See CHANGELOG.md for details.
+        draft: false
+        prerelease: false
