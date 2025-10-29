@@ -4,6 +4,9 @@
 #include <QSlider>
 #include <QLabel>
 #include <QVBoxLayout>
+#include <QPushButton>
+#include <QFrame>
+#include "ResettableSlider.h"
 
 namespace zraw {
 
@@ -30,6 +33,8 @@ public:
     float highlightContrast() const;
     float midtoneContrast() const;
     float shadowContrast() const;
+    float whites() const;
+    float blacks() const;
     
     // Setters to update UI (without triggering signals)
     void setExposure(float value);
@@ -44,6 +49,8 @@ public:
     void setHighlightContrast(float value);
     void setMidtoneContrast(float value);
     void setShadowContrast(float value);
+    void setWhites(float value);
+    void setBlacks(float value);
 
 signals:
     void exposureChanged(float value);
@@ -58,6 +65,8 @@ signals:
     void highlightContrastChanged(float value);
     void midtoneContrastChanged(float value);
     void shadowContrastChanged(float value);
+    void whitesChanged(float value);
+    void blacksChanged(float value);
 
 private:
     QSlider* m_exposureSlider;
@@ -72,6 +81,8 @@ private:
     QSlider* m_highlightContrastSlider;
     QSlider* m_midtoneContrastSlider;
     QSlider* m_shadowContrastSlider;
+    QSlider* m_whitesSlider;
+    QSlider* m_blacksSlider;
     
     QLabel* m_exposureLabel;
     QLabel* m_contrastLabel;
@@ -85,10 +96,13 @@ private:
     QLabel* m_highlightContrastLabel;
     QLabel* m_midtoneContrastLabel;
     QLabel* m_shadowContrastLabel;
+    QLabel* m_whitesLabel;
+    QLabel* m_blacksLabel;
     
     void createUI();
-    QWidget* createSliderGroup(const QString& name, QSlider** slider, QLabel** valueLabel,
-                               int min, int max, int defaultVal);
+    QWidget* createSection(const QString& title, QVBoxLayout* contentLayout);
+    QWidget* createSliderRow(const QString& name, QSlider** slider, QLabel** valueLabel,
+                             int min, int max, int defaultVal);
     void updateExposureLabel(int value);
     void updateContrastLabel(int value);
     void updateSharpnessLabel(int value);
@@ -101,6 +115,8 @@ private:
     void updateHighlightContrastLabel(int value);
     void updateMidtoneContrastLabel(int value);
     void updateShadowContrastLabel(int value);
+    void updateWhitesLabel(int value);
+    void updateBlacksLabel(int value);
 };
 
 } // namespace zraw

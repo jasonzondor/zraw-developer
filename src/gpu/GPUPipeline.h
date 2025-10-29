@@ -42,6 +42,8 @@ public:
     void setHighlightContrast(float highlightContrast);
     void setMidtoneContrast(float midtoneContrast);
     void setShadowContrast(float shadowContrast);
+    void setWhites(float whites);
+    void setBlacks(float blacks);
     
     // Output mode: 0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES
     void setOutputMode(int mode);
@@ -81,6 +83,8 @@ private:
     float m_highlightContrast;
     float m_midtoneContrast;
     float m_shadowContrast;
+    float m_whites;
+    float m_blacks;
     
     // Output mode (0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES)
     int m_outputMode;

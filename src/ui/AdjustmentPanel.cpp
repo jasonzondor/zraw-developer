@@ -1,6 +1,7 @@
 #include "AdjustmentPanel.h"
-#include <QGroupBox>
 #include <QHBoxLayout>
+#include <QFrame>
+#include <QPushButton>
 
 namespace zraw {
 
@@ -13,172 +14,167 @@ AdjustmentPanel::~AdjustmentPanel() {
 }
 
 void AdjustmentPanel::createUI() {
-    auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(10, 10, 10, 10);
+    auto* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
+    
+    // Set dark background
+    setStyleSheet("AdjustmentPanel { background-color: #2b2b2b; }");
     
     // ========================================================================
-    // SECTION 1: WHITE BALANCE (First - corrects scene illuminant)
+    // SECTION 1: BASIC (Tone adjustments)
     // ========================================================================
-    auto* wbLabel = new QLabel("<b>White Balance</b>");
-    wbLabel->setStyleSheet("QLabel { color: #888; margin-top: 5px; }");
-    layout->addWidget(wbLabel);
+    auto* basicContent = new QVBoxLayout();
+    basicContent->setSpacing(8);
+    basicContent->setContentsMargins(12, 8, 12, 8);
     
-    // Temperature slider (-100 to +100, step 1)
-    auto* temperatureGroup = createSliderGroup("Temperature", &m_temperatureSlider, &m_temperatureLabel,
-                                               -100, 100, 0);
-    layout->addWidget(temperatureGroup);
-    
-    connect(m_temperatureSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateTemperatureLabel(value);
-        emit temperatureChanged(static_cast<float>(value));
-    });
-    
-    // Tint slider (-100 to +100, step 1)
-    auto* tintGroup = createSliderGroup("Tint", &m_tintSlider, &m_tintLabel,
-                                        -100, 100, 0);
-    layout->addWidget(tintGroup);
-    
-    connect(m_tintSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateTintLabel(value);
-        emit tintChanged(static_cast<float>(value));
-    });
-    
-    // ========================================================================
-    // SECTION 2: TONE (Exposure and tone recovery)
-    // ========================================================================
-    auto* toneLabel = new QLabel("<b>Tone</b>");
-    toneLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
-    layout->addWidget(toneLabel);
-    
-    // Exposure slider (-3.0 to +3.0, step 0.01)
-    auto* exposureGroup = createSliderGroup("Exposure", &m_exposureSlider, &m_exposureLabel,
-                                            -300, 300, 0);
-    layout->addWidget(exposureGroup);
-    
+    // Exposure
+    auto* exposureRow = createSliderRow("Exposure", &m_exposureSlider, &m_exposureLabel,
+                                        -300, 300, 0);
+    basicContent->addWidget(exposureRow);
     connect(m_exposureSlider, &QSlider::valueChanged, this, [this](int value) {
         updateExposureLabel(value);
         emit exposureChanged(value / 100.0f);
     });
     
-    // Highlights slider (-100 to +100, step 1)
-    auto* highlightsGroup = createSliderGroup("Highlights", &m_highlightsSlider, &m_highlightsLabel,
-                                              -100, 100, 0);
-    layout->addWidget(highlightsGroup);
-    
-    connect(m_highlightsSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateHighlightsLabel(value);
-        emit highlightsChanged(static_cast<float>(value));
-    });
-    
-    // Shadows slider (-100 to +100, step 1)
-    auto* shadowsGroup = createSliderGroup("Shadows", &m_shadowsSlider, &m_shadowsLabel,
-                                           -100, 100, 0);
-    layout->addWidget(shadowsGroup);
-    
-    connect(m_shadowsSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateShadowsLabel(value);
-        emit shadowsChanged(static_cast<float>(value));
-    });
-    
-    // ========================================================================
-    // SECTION 3: CONTRAST (Global and local)
-    // ========================================================================
-    auto* contrastLabel = new QLabel("<b>Contrast</b>");
-    contrastLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
-    layout->addWidget(contrastLabel);
-    
-    // Global Contrast slider (-1.0 to +1.0, step 0.01)
-    auto* contrastGroup = createSliderGroup("Contrast", &m_contrastSlider, &m_contrastLabel,
-                                            -100, 100, 0);
-    layout->addWidget(contrastGroup);
-    
+    // Contrast
+    auto* contrastRow = createSliderRow("Contrast", &m_contrastSlider, &m_contrastLabel,
+                                        -100, 100, 0);
+    basicContent->addWidget(contrastRow);
     connect(m_contrastSlider, &QSlider::valueChanged, this, [this](int value) {
         updateContrastLabel(value);
         emit contrastChanged(value / 100.0f);
     });
     
-    // Local Contrast - Highlights (-100 to +100, step 1)
-    auto* highlightContrastGroup = createSliderGroup("Highlight Contrast", &m_highlightContrastSlider, 
-                                                     &m_highlightContrastLabel, -100, 100, 0);
-    layout->addWidget(highlightContrastGroup);
-    
-    connect(m_highlightContrastSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateHighlightContrastLabel(value);
-        emit highlightContrastChanged(static_cast<float>(value));
+    // Highlights
+    auto* highlightsRow = createSliderRow("Highlights", &m_highlightsSlider, &m_highlightsLabel,
+                                          -100, 100, 0);
+    basicContent->addWidget(highlightsRow);
+    connect(m_highlightsSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateHighlightsLabel(value);
+        emit highlightsChanged(static_cast<float>(value));
     });
     
-    // Local Contrast - Midtones (-100 to +100, step 1)
-    auto* midtoneContrastGroup = createSliderGroup("Midtone Contrast", &m_midtoneContrastSlider, 
-                                                   &m_midtoneContrastLabel, -100, 100, 0);
-    layout->addWidget(midtoneContrastGroup);
-    
-    connect(m_midtoneContrastSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateMidtoneContrastLabel(value);
-        emit midtoneContrastChanged(static_cast<float>(value));
+    // Shadows
+    auto* shadowsRow = createSliderRow("Shadows", &m_shadowsSlider, &m_shadowsLabel,
+                                       -100, 100, 0);
+    basicContent->addWidget(shadowsRow);
+    connect(m_shadowsSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateShadowsLabel(value);
+        emit shadowsChanged(static_cast<float>(value));
     });
     
-    // Local Contrast - Shadows (-100 to +100, step 1)
-    auto* shadowContrastGroup = createSliderGroup("Shadow Contrast", &m_shadowContrastSlider, 
-                                                  &m_shadowContrastLabel, -100, 100, 0);
-    layout->addWidget(shadowContrastGroup);
-    
-    connect(m_shadowContrastSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateShadowContrastLabel(value);
-        emit shadowContrastChanged(static_cast<float>(value));
+    // Whites
+    auto* whiteRow = createSliderRow("Whites", &m_whitesSlider, &m_whitesLabel,
+                                     -100, 100, 0);
+    basicContent->addWidget(whiteRow);
+    connect(m_whitesSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateWhitesLabel(value);
+        emit whitesChanged(static_cast<float>(value));
     });
+    
+    // Blacks
+    auto* blackRow = createSliderRow("Blacks", &m_blacksSlider, &m_blacksLabel,
+                                     -100, 100, 0);
+    basicContent->addWidget(blackRow);
+    connect(m_blacksSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateBlacksLabel(value);
+        emit blacksChanged(static_cast<float>(value));
+    });
+    
+    auto* basicSection = createSection("Basic", basicContent);
+    mainLayout->addWidget(basicSection);
     
     // ========================================================================
-    // SECTION 4: COLOR (Saturation and vibrance)
+    // SECTION 2: COLOR
     // ========================================================================
-    auto* colorLabel = new QLabel("<b>Color</b>");
-    colorLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
-    layout->addWidget(colorLabel);
+    auto* colorContent = new QVBoxLayout();
+    colorContent->setSpacing(8);
+    colorContent->setContentsMargins(12, 8, 12, 8);
     
-    // Vibrance slider (-100 to +100, step 1)
-    auto* vibranceGroup = createSliderGroup("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
-                                            -100, 100, 0);
-    layout->addWidget(vibranceGroup);
-    
+    // Vibrance
+    auto* vibranceRow = createSliderRow("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
+                                        -100, 100, 0);
+    colorContent->addWidget(vibranceRow);
     connect(m_vibranceSlider, &QSlider::valueChanged, this, [this](int value) {
         updateVibranceLabel(value);
         emit vibranceChanged(static_cast<float>(value));
     });
     
-    // Saturation slider (-100 to +100, step 1)
-    auto* saturationGroup = createSliderGroup("Saturation", &m_saturationSlider, &m_saturationLabel,
-                                              -100, 100, 0);
-    layout->addWidget(saturationGroup);
-    
+    // Saturation
+    auto* saturationRow = createSliderRow("Saturation", &m_saturationSlider, &m_saturationLabel,
+                                          -100, 100, 0);
+    colorContent->addWidget(saturationRow);
     connect(m_saturationSlider, &QSlider::valueChanged, this, [this](int value) {
         updateSaturationLabel(value);
         emit saturationChanged(static_cast<float>(value));
     });
     
-    // ========================================================================
-    // SECTION 5: DETAIL (Sharpening - last step)
-    // ========================================================================
-    auto* detailLabel = new QLabel("<b>Detail</b>");
-    detailLabel->setStyleSheet("QLabel { color: #888; margin-top: 10px; }");
-    layout->addWidget(detailLabel);
+    auto* colorSection = createSection("Color", colorContent);
+    mainLayout->addWidget(colorSection);
     
-    // Sharpness slider (0.0 to 2.0, step 0.01)
-    auto* sharpnessGroup = createSliderGroup("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
-                                             0, 200, 0);
-    layout->addWidget(sharpnessGroup);
+    // ========================================================================
+    // SECTION 3: DETAIL
+    // ========================================================================
+    auto* detailContent = new QVBoxLayout();
+    detailContent->setSpacing(8);
+    detailContent->setContentsMargins(12, 8, 12, 8);
     
+    // Sharpness
+    auto* sharpnessRow = createSliderRow("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
+                                         0, 200, 0);
+    detailContent->addWidget(sharpnessRow);
     connect(m_sharpnessSlider, &QSlider::valueChanged, this, [this](int value) {
         updateSharpnessLabel(value);
         emit sharpnessChanged(value / 100.0f);
     });
     
-    layout->addStretch();
+    auto* detailSection = createSection("Detail", detailContent);
+    mainLayout->addWidget(detailSection);
+    
+    // ========================================================================
+    // SECTION 4: ADVANCED (Local contrast controls)
+    // ========================================================================
+    auto* advancedContent = new QVBoxLayout();
+    advancedContent->setSpacing(8);
+    advancedContent->setContentsMargins(12, 8, 12, 8);
+    
+    // Highlight Contrast
+    auto* highlightContrastRow = createSliderRow("Highlight Contrast", &m_highlightContrastSlider,
+                                                 &m_highlightContrastLabel, -100, 100, 0);
+    advancedContent->addWidget(highlightContrastRow);
+    connect(m_highlightContrastSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateHighlightContrastLabel(value);
+        emit highlightContrastChanged(static_cast<float>(value));
+    });
+    
+    // Midtone Contrast
+    auto* midtoneContrastRow = createSliderRow("Midtone Contrast", &m_midtoneContrastSlider,
+                                               &m_midtoneContrastLabel, -100, 100, 0);
+    advancedContent->addWidget(midtoneContrastRow);
+    connect(m_midtoneContrastSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateMidtoneContrastLabel(value);
+        emit midtoneContrastChanged(static_cast<float>(value));
+    });
+    
+    // Shadow Contrast
+    auto* shadowContrastRow = createSliderRow("Shadow Contrast", &m_shadowContrastSlider,
+                                              &m_shadowContrastLabel, -100, 100, 0);
+    advancedContent->addWidget(shadowContrastRow);
+    connect(m_shadowContrastSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateShadowContrastLabel(value);
+        emit shadowContrastChanged(static_cast<float>(value));
+    });
+    
+    auto* advancedSection = createSection("Advanced", advancedContent);
+    mainLayout->addWidget(advancedSection);
+    
+    mainLayout->addStretch();
     
     // Initialize labels
     updateExposureLabel(0);
     updateContrastLabel(0);
     updateSharpnessLabel(0);
-    updateTemperatureLabel(0);
-    updateTintLabel(0);
     updateHighlightsLabel(0);
     updateShadowsLabel(0);
     updateVibranceLabel(0);
@@ -186,28 +182,121 @@ void AdjustmentPanel::createUI() {
     updateHighlightContrastLabel(0);
     updateMidtoneContrastLabel(0);
     updateShadowContrastLabel(0);
+    updateWhitesLabel(0);
+    updateBlacksLabel(0);
 }
 
-QWidget* AdjustmentPanel::createSliderGroup(const QString& name, QSlider** slider,
-                                            QLabel** valueLabel, int min, int max, int defaultVal) {
-    auto* group = new QGroupBox(name);
-    auto* layout = new QVBoxLayout(group);
+QWidget* AdjustmentPanel::createSection(const QString& title, QVBoxLayout* contentLayout) {
+    auto* section = new QWidget();
+    auto* sectionLayout = new QVBoxLayout(section);
+    sectionLayout->setContentsMargins(0, 0, 0, 0);
+    sectionLayout->setSpacing(0);
     
-    // Value label
-    *valueLabel = new QLabel("0.00");
-    (*valueLabel)->setAlignment(Qt::AlignCenter);
-    layout->addWidget(*valueLabel);
+    // Header with collapse button
+    auto* header = new QWidget();
+    header->setStyleSheet("QWidget { background-color: #3a3a3a; }");
+    auto* headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins(12, 8, 12, 8);
     
-    // Slider
-    *slider = new QSlider(Qt::Horizontal);
-    (*slider)->setMinimum(min);
-    (*slider)->setMaximum(max);
-    (*slider)->setValue(defaultVal);
-    (*slider)->setTickPosition(QSlider::TicksBelow);
-    (*slider)->setTickInterval((max - min) / 10);
-    layout->addWidget(*slider);
+    auto* titleLabel = new QLabel(title);
+    titleLabel->setStyleSheet("QLabel { color: #e0e0e0; font-weight: bold; font-size: 13px; }");
+    headerLayout->addWidget(titleLabel);
     
-    return group;
+    headerLayout->addStretch();
+    
+    auto* collapseBtn = new QPushButton("▼");
+    collapseBtn->setFixedSize(20, 20);
+    collapseBtn->setStyleSheet(
+        "QPushButton { "
+        "  background-color: transparent; "
+        "  border: none; "
+        "  color: #888; "
+        "  font-size: 10px; "
+        "}"
+        "QPushButton:hover { color: #fff; }"
+    );
+    headerLayout->addWidget(collapseBtn);
+    
+    sectionLayout->addWidget(header);
+    
+    // Content widget
+    auto* contentWidget = new QWidget();
+    contentWidget->setLayout(contentLayout);
+    contentWidget->setStyleSheet("QWidget { background-color: #2b2b2b; }");
+    sectionLayout->addWidget(contentWidget);
+    
+    // Connect collapse button
+    connect(collapseBtn, &QPushButton::clicked, [collapseBtn, contentWidget]() {
+        bool isVisible = contentWidget->isVisible();
+        contentWidget->setVisible(!isVisible);
+        collapseBtn->setText(isVisible ? "▶" : "▼");
+    });
+    
+    // Add separator line
+    auto* separator = new QFrame();
+    separator->setFrameShape(QFrame::HLine);
+    separator->setStyleSheet("QFrame { background-color: #1a1a1a; max-height: 1px; }");
+    sectionLayout->addWidget(separator);
+    
+    return section;
+}
+
+QWidget* AdjustmentPanel::createSliderRow(const QString& name, QSlider** slider,
+                                          QLabel** valueLabel, int min, int max, int defaultVal) {
+    auto* row = new QWidget();
+    auto* rowLayout = new QVBoxLayout(row);
+    rowLayout->setContentsMargins(0, 0, 0, 0);
+    rowLayout->setSpacing(4);
+    
+    // Top row: label and value
+    auto* topRow = new QWidget();
+    auto* topLayout = new QHBoxLayout(topRow);
+    topLayout->setContentsMargins(0, 0, 0, 0);
+    
+    auto* nameLabel = new QLabel(name);
+    nameLabel->setStyleSheet("QLabel { color: #b0b0b0; font-size: 12px; }");
+    topLayout->addWidget(nameLabel);
+    
+    topLayout->addStretch();
+    
+    *valueLabel = new QLabel("0");
+    (*valueLabel)->setStyleSheet("QLabel { color: #e0e0e0; font-size: 12px; }");
+    (*valueLabel)->setAlignment(Qt::AlignRight);
+    topLayout->addWidget(*valueLabel);
+    
+    rowLayout->addWidget(topRow);
+    
+    // Slider (with double-click reset support)
+    auto* resettableSlider = new ResettableSlider(Qt::Horizontal);
+    resettableSlider->setMinimum(min);
+    resettableSlider->setMaximum(max);
+    resettableSlider->setValue(defaultVal);
+    resettableSlider->setDefaultValue(defaultVal);
+    *slider = resettableSlider;
+    (*slider)->setStyleSheet(
+        "QSlider::groove:horizontal {"
+        "  background: #1a1a1a;"
+        "  height: 4px;"
+        "  border-radius: 2px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "  background: #ffffff;"
+        "  width: 12px;"
+        "  height: 12px;"
+        "  margin: -4px 0;"
+        "  border-radius: 6px;"
+        "}"
+        "QSlider::handle:horizontal:hover {"
+        "  background: #e0e0e0;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "  background: #4a9eff;"
+        "  border-radius: 2px;"
+        "}"
+    );
+    rowLayout->addWidget(*slider);
+    
+    return row;
 }
 
 void AdjustmentPanel::updateExposureLabel(int value) {
@@ -261,6 +350,14 @@ void AdjustmentPanel::updateShadowContrastLabel(int value) {
     m_shadowContrastLabel->setText(QString::number(value));
 }
 
+void AdjustmentPanel::updateWhitesLabel(int value) {
+    m_whitesLabel->setText(QString::number(value));
+}
+
+void AdjustmentPanel::updateBlacksLabel(int value) {
+    m_blacksLabel->setText(QString::number(value));
+}
+
 // Getters
 float AdjustmentPanel::exposure() const {
     return m_exposureSlider->value() / 100.0f;
@@ -308,6 +405,14 @@ float AdjustmentPanel::midtoneContrast() const {
 
 float AdjustmentPanel::shadowContrast() const {
     return static_cast<float>(m_shadowContrastSlider->value());
+}
+
+float AdjustmentPanel::whites() const {
+    return static_cast<float>(m_whitesSlider->value());
+}
+
+float AdjustmentPanel::blacks() const {
+    return static_cast<float>(m_blacksSlider->value());
 }
 
 // Setters (block signals to prevent triggering changes)
@@ -393,6 +498,20 @@ void AdjustmentPanel::setShadowContrast(float value) {
     m_shadowContrastSlider->setValue(static_cast<int>(value));
     updateShadowContrastLabel(m_shadowContrastSlider->value());
     m_shadowContrastSlider->blockSignals(false);
+}
+
+void AdjustmentPanel::setWhites(float value) {
+    m_whitesSlider->blockSignals(true);
+    m_whitesSlider->setValue(static_cast<int>(value));
+    updateWhitesLabel(m_whitesSlider->value());
+    m_whitesSlider->blockSignals(false);
+}
+
+void AdjustmentPanel::setBlacks(float value) {
+    m_blacksSlider->blockSignals(true);
+    m_blacksSlider->setValue(static_cast<int>(value));
+    updateBlacksLabel(m_blacksSlider->value());
+    m_blacksSlider->blockSignals(false);
 }
 
 } // namespace zraw

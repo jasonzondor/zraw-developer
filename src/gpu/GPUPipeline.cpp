@@ -36,6 +36,8 @@ uniform float saturation;
 uniform float highlightContrast;
 uniform float midtoneContrast;
 uniform float shadowContrast;
+uniform float whites;
+uniform float blacks;
 uniform vec2 texelSize;
 
 // Output mode: 0=SDR (default), 1=HDR PQ, 2=HDR HLG, 3=Full ACES
@@ -590,6 +592,25 @@ void main() {
     // 3. Exposure (linear space multiplication)
     color *= pow(2.0, exposure);
     
+    // 3.5. Whites and Blacks adjustment (tone curve adjustment)
+    //      Whites: brightens/darkens the bright tones (above middle gray)
+    //      Blacks: brightens/darkens the dark tones (below middle gray)
+    if (abs(whites) > 0.1 || abs(blacks) > 0.1) {
+        float lum = luminance(color);
+        
+        // Smooth transition masks
+        // Whites affects upper half of tonal range
+        float whitesMask = smoothstep(0.18, 0.9, lum);  // 18% gray to near-white
+        // Blacks affects lower half of tonal range
+        float blacksMask = smoothstep(0.18, 0.01, lum);  // 18% gray to near-black
+        
+        // Apply adjustments (convert from -100/+100 to multiplier)
+        float whitesFactor = 1.0 + (whites / 100.0) * whitesMask * 0.5;
+        float blacksFactor = 1.0 + (blacks / 100.0) * blacksMask * 0.5;
+        
+        color *= whitesFactor * blacksFactor;
+    }
+    
     // 4. Highlights and Shadows Recovery (in linear space)
     //    Use improved luminance calculation and smooth falloffs
     if (abs(highlights) > 0.1 || abs(shadows) > 0.1) {
@@ -681,8 +702,18 @@ void main() {
         color = linearToHLG(color);
         
     } else {
-        // Default: SDR output (simplified ACES)
-        color = acesToneMap(max(color, 0.0));
+        // Default: SDR output with gentle tone curve
+        // Simple shoulder to prevent clipping, but much less aggressive than ACES
+        color = max(color, 0.0);
+        
+        // Gentle highlight rolloff (Reinhard-style but softer)
+        // Only compress values above 1.0, leave everything below untouched
+        float lum = luminance(color);
+        if (lum > 1.0) {
+            float newLum = 1.0 + (lum - 1.0) / (1.0 + (lum - 1.0));
+            color = color * (newLum / lum);
+        }
+        
         color = adaptiveGamutMap(color);
     }
     
@@ -763,6 +794,7 @@ GPUPipeline::GPUPipeline()
       m_highlights(0.0f), m_shadows(0.0f),
       m_vibrance(0.0f), m_saturation(0.0f),
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),
+      m_whites(0.0f), m_blacks(0.0f),
       m_outputMode(0),  // Default to SDR
       m_vao(0), m_vbo(0) {
 }
@@ -916,6 +948,14 @@ void GPUPipeline::setShadowContrast(float shadowContrast) {
     m_shadowContrast = shadowContrast;
 }
 
+void GPUPipeline::setWhites(float whites) {
+    m_whites = whites;
+}
+
+void GPUPipeline::setBlacks(float blacks) {
+    m_blacks = blacks;
+}
+
 void GPUPipeline::setOutputMode(int mode) {
     m_outputMode = mode;
 }
@@ -953,6 +993,8 @@ bool GPUPipeline::process() {
     m_shader->setUniform("highlightContrast", m_highlightContrast);
     m_shader->setUniform("midtoneContrast", m_midtoneContrast);
     m_shader->setUniform("shadowContrast", m_shadowContrast);
+    m_shader->setUniform("whites", m_whites);
+    m_shader->setUniform("blacks", m_blacks);
     m_shader->setUniform("texelSize", 1.0f / m_width, 1.0f / m_height);
     m_shader->setUniform("outputMode", m_outputMode);
     

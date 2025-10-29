@@ -46,12 +46,13 @@ void MainWindow::createUI() {
     
     // Image viewer (left side)
     m_viewer = new ImageViewer();
-    m_viewer->setMinimumSize(800, 600);
+    m_viewer->setMinimumSize(400, 300);  // Reduced minimum size
     splitter->addWidget(m_viewer);
     
     // Adjustment panel (right side)
     m_adjustmentPanel = new AdjustmentPanel();
-    m_adjustmentPanel->setMaximumWidth(350);
+    m_adjustmentPanel->setMinimumWidth(150);
+    m_adjustmentPanel->setMaximumWidth(300);
     splitter->addWidget(m_adjustmentPanel);
     
     // Set splitter sizes
@@ -59,6 +60,9 @@ void MainWindow::createUI() {
     splitter->setStretchFactor(1, 1);
     
     setCentralWidget(splitter);
+    
+    // Set minimum window size to prevent overlap
+    setMinimumSize(650, 400);  // 400 (viewer min) + 150 (panel min) + margins
     
     // Connect adjustment signals
     connect(m_adjustmentPanel, &AdjustmentPanel::exposureChanged,
@@ -85,6 +89,10 @@ void MainWindow::createUI() {
             this, &MainWindow::onMidtoneContrastChanged);
     connect(m_adjustmentPanel, &AdjustmentPanel::shadowContrastChanged,
             this, &MainWindow::onShadowContrastChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::whitesChanged,
+            this, &MainWindow::onWhitesChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::blacksChanged,
+            this, &MainWindow::onBlacksChanged);
 }
 
 void MainWindow::createMenus() {
@@ -360,6 +368,28 @@ void MainWindow::onShadowContrastChanged(float value) {
     }
 }
 
+void MainWindow::onWhitesChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setWhites(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onBlacksChanged(float value) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setBlacks(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
 void MainWindow::updateImage() {
     m_viewer->makeCurrent();
     m_gpuPipeline->process();
@@ -404,8 +434,7 @@ void MainWindow::loadXMPAdjustments() {
         m_adjustmentPanel->setExposure(adjustments.exposure);
         m_adjustmentPanel->setContrast(adjustments.contrast);
         m_adjustmentPanel->setSharpness(adjustments.sharpness);
-        m_adjustmentPanel->setTemperature(adjustments.temperature);
-        m_adjustmentPanel->setTint(adjustments.tint);
+        // Note: temperature and tint sliders removed (replaced with whites/blacks)
         m_adjustmentPanel->setHighlights(adjustments.highlights);
         m_adjustmentPanel->setShadows(adjustments.shadows);
         m_adjustmentPanel->setVibrance(adjustments.vibrance);
@@ -413,6 +442,8 @@ void MainWindow::loadXMPAdjustments() {
         m_adjustmentPanel->setHighlightContrast(adjustments.highlightContrast);
         m_adjustmentPanel->setMidtoneContrast(adjustments.midtoneContrast);
         m_adjustmentPanel->setShadowContrast(adjustments.shadowContrast);
+        m_adjustmentPanel->setWhites(0);  // Default whites
+        m_adjustmentPanel->setBlacks(0);  // Default blacks
     }
     
     m_loadingXMP = false;
@@ -442,8 +473,8 @@ void MainWindow::saveXMPAdjustments() {
     adjustments.exposure = m_adjustmentPanel->exposure();
     adjustments.contrast = m_adjustmentPanel->contrast();
     adjustments.sharpness = m_adjustmentPanel->sharpness();
-    adjustments.temperature = m_adjustmentPanel->temperature();
-    adjustments.tint = m_adjustmentPanel->tint();
+    adjustments.temperature = 0;  // Temperature slider removed
+    adjustments.tint = 0;  // Tint slider removed
     adjustments.highlights = m_adjustmentPanel->highlights();
     adjustments.shadows = m_adjustmentPanel->shadows();
     adjustments.vibrance = m_adjustmentPanel->vibrance();
