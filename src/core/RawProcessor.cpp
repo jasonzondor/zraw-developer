@@ -1,6 +1,7 @@
 #include "RawProcessor.h"
 #include <libraw/libraw.h>
 #include <iostream>
+#include <cstring>
 
 namespace zraw {
 
@@ -31,6 +32,35 @@ bool RawProcessor::processToRGB() {
         return false;
     }
     
+    // Configure processing parameters
+    libraw_output_params_t& params = m_libraw->imgdata.params;
+    
+    // Detect X-Trans sensor (Fujifilm)
+    bool isXTrans = (m_libraw->imgdata.idata.filters == 9);
+    
+    if (isXTrans) {
+        // X-Trans sensors: Use 3-pass algorithm (best quality for X-Trans)
+        // Options: 0=linear, 1=VNG, 2=PPG, 3=AHD, 4=DCB, 11=DHT, 12=AAHD
+        params.user_qual = 11;  // DHT (11) or AAHD (12) work best for X-Trans
+        std::cout << "Detected X-Trans sensor, using DHT demosaicing" << std::endl;
+    } else {
+        // Bayer sensors: Use AHD (Adaptive Homogeneity-Directed)
+        params.user_qual = 3;  // AHD is excellent for Bayer
+        std::cout << "Detected Bayer sensor, using AHD demosaicing" << std::endl;
+    }
+    
+    // Use camera white balance
+    params.use_camera_wb = 1;
+    
+    // Output 16-bit for better quality
+    params.output_bps = 16;
+    
+    // Use sRGB color space (can be changed to Adobe RGB if needed)
+    params.output_color = 1;  // 1=sRGB, 2=Adobe RGB
+    
+    // No automatic brightness adjustment (we'll do this in GPU pipeline)
+    params.no_auto_bright = 1;
+    
     // Process to RGB
     ret = m_libraw->dcraw_process();
     if (ret != LIBRAW_SUCCESS) {
@@ -52,13 +82,21 @@ bool RawProcessor::processToRGB() {
     
     m_buffer->allocate(width, height, channels);
     
-    // Convert 8-bit to 16-bit for processing
     uint16_t* dest = m_buffer->data();
-    const uint8_t* src = image->data;
-    size_t pixelCount = static_cast<size_t>(width) * height * channels;
     
-    for (size_t i = 0; i < pixelCount; ++i) {
-        dest[i] = static_cast<uint16_t>(src[i]) << 8;
+    // Check if output is 8-bit or 16-bit
+    if (image->bits == 8) {
+        // Convert 8-bit to 16-bit
+        const uint8_t* src = image->data;
+        size_t pixelCount = static_cast<size_t>(width) * height * channels;
+        for (size_t i = 0; i < pixelCount; ++i) {
+            dest[i] = static_cast<uint16_t>(src[i]) << 8;
+        }
+    } else {
+        // Copy 16-bit directly
+        const uint16_t* src = reinterpret_cast<const uint16_t*>(image->data);
+        size_t pixelCount = static_cast<size_t>(width) * height * channels;
+        std::memcpy(dest, src, pixelCount * sizeof(uint16_t));
     }
     
     // Free LibRaw image
