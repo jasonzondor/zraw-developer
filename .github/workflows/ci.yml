@@ -23,7 +23,7 @@ jobs:
           libraw-dev \
           libgl1-mesa-dev \
           libglu1-mesa-dev \
-          libtiff-4-dev
+          libtiff-dev
     
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
