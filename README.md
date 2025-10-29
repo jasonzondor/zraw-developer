@@ -1,18 +1,82 @@
 # ZRaw Developer
 
-A high-performance, Linux-first RAW photo developer with GPU acceleration.
+A RAW photo processor with **color science** and GPU acceleration.
 
-## Features
+Built for photographers who appreciate **accurate color**, **professional workflows**, and **real-time performance**.
 
-- **GPU-Accelerated Processing** - Real-time editing using OpenGL shaders
-- **RAW Format Support** - Supports CR2, NEF, ARW, DNG, RAF, ORF, RW2, and more via LibRaw
-- **Basic Adjustments**:
-  - Exposure (-3 to +3 stops)
-  - Contrast (-1 to +1)
-  - Sharpness (0 to 2)
-- **Modern Qt6 Interface** - Clean, responsive UI
-- **Command-Line Support** - Can be called by external photo managers
-- **16-bit Processing Pipeline** - High dynamic range preservation
+## ✨ Highlights
+
+- 🎨 **ACES Color Science** - Hollywood-standard color pipeline
+- 🚀 **GPU-Accelerated** - Real-time editing with OpenGL compute shaders
+- 🎬 **HDR Output** - PQ (HDR10) and HLG (broadcast) encoding support
+- 🔬 **Perceptually Accurate** - LCH color space, Bradford adaptation, log-space contrast
+- 📸 **Wide Format Support** - CR2, NEF, ARW, DNG, RAF (X-Trans), ORF, RW2, and more
+- 💾 **Non-Destructive** - XMP sidecar files for all adjustments
+- ⚡ **High Performance** - 16-bit processing pipeline, multi-threaded RAW loading
+
+## 🎨 Professional Color Science
+
+ZRaw Developer implements **industry-standard color science** matching professional workflows:
+
+### Color Pipeline
+```
+RAW Demosaic → White Balance (Bradford) → Exposure (Linear) 
+→ Tone Recovery (Gaussian) → Contrast (Log Space) 
+→ Local Contrast (Zone-based) → Color (LCH Space) 
+→ ACES Tone Mapping → Gamut Mapping → Sharpening (Edge-aware) 
+→ Output Transform (SDR/HDR)
+```
+
+### Key Features
+
+**White Balance**
+- Bradford chromatic adaptation (industry standard)
+- Accurate color temperature and tint control
+- No color shifts or artifacts
+
+**Tone Mapping**
+- ACES RRT (Reference Rendering Transform)
+- Smooth highlight rolloff (no clipping)
+- Film-like rendering
+
+**Color Adjustments**
+- LCH color space (perceptually uniform, no hue shifts)
+- Vibrance (smart saturation for muted colors)
+- Saturation (linear chroma adjustment)
+
+**Sharpening**
+- Edge-aware deconvolution (halo-free)
+- Variance-based detail detection
+- Luminance-only (preserves color)
+
+**HDR Output**
+- PQ (Perceptual Quantizer) for HDR10/Dolby Vision
+- HLG (Hybrid Log-Gamma) for broadcast
+- Full ACES workflow (AP0 → RRT → ODT)
+
+## 📋 Adjustment Controls
+
+### White Balance
+- **Temperature** - Warm/cool color balance (-100 to +100)
+- **Tint** - Green/magenta balance (-100 to +100)
+
+### Tone
+- **Exposure** - Overall brightness (-3 to +3 stops)
+- **Highlights** - Recover blown highlights (-100 to +100)
+- **Shadows** - Lift shadow detail (-100 to +100)
+
+### Contrast
+- **Contrast** - Global midpoint contrast (-1 to +1)
+- **Highlight Contrast** - Contrast in bright areas (-100 to +100)
+- **Midtone Contrast** - Contrast in mid-tones (-100 to +100)
+- **Shadow Contrast** - Contrast in dark areas (-100 to +100)
+
+### Color
+- **Vibrance** - Smart saturation boost (-100 to +100)
+- **Saturation** - Linear saturation (-100 to +100)
+
+### Detail
+- **Sharpness** - Edge enhancement (0 to 2.0)
 
 ## Architecture
 
@@ -88,31 +152,55 @@ sudo make install
 - Efficient 16-bit processing pipeline
 - Minimal memory allocations during editing
 
-## Roadmap
+## 🗺️ Roadmap
 
-### Phase 1 (Current)
-- [x] Basic RAW loading
-- [x] GPU pipeline
-- [x] Exposure, contrast, sharpness
-- [x] Qt6 GUI
-- [ ] Image export (TIFF, JPEG, PNG)
-- [ ] CLI interface
+### ✅ Phase 1: Fundamentals (Complete)
+- [x] RAW loading with LibRaw (all major formats)
+- [x] GPU-accelerated processing pipeline
+- [x] Basic adjustments (Exposure, Contrast, Sharpness)
+- [x] Qt6 GUI with real-time preview
+- [x] XMP sidecar support
 
-### Phase 2
-- [x] White balance
-- [x] Highlights/Shadows
-- [x] Vibrance/Saturation
-- [x] Local contrast
-- [ ] Tone curves
-- [ ] Color grading
-- [ ] Chromatic aberration
+### ✅ Phase 2: Professional Color Science (Complete)
+- [x] Bradford chromatic adaptation for white balance
+- [x] ACES tone mapping (RRT)
+- [x] LCH color space for saturation (no hue shifts)
+- [x] Log-space contrast adjustments
+- [x] Gaussian highlight/shadow recovery
+- [x] Zone-based local contrast
+- [x] Adaptive gamut mapping
 
-### Phase 3
-- [ ] Lens corrections
-- [ ] Noise reduction
-- [ ] Local adjustments
+### ✅ Phase 3: Cinema-Grade Features (Complete)
+- [x] Full ACES workflow (AP0 → AP1 → RRT → ODT)
+- [x] HDR output support (PQ and HLG encoding)
+- [x] Edge-aware RAW sharpening (halo-free)
+- [x] Professional UI layout (workflow-optimized)
+- [x] Multiple output modes (SDR, HDR PQ, HDR HLG, Full ACES)
+
+### 🚧 Phase 4: Export & Workflow (In Progress)
+- [ ] Image export (TIFF 16-bit, JPEG, PNG)
+- [ ] ICC profile support for output
 - [ ] Batch processing
-- [ ] Preset system
+- [ ] Preset system (save/load adjustment sets)
+- [ ] Before/After comparison view
+
+### 📅 Phase 5: Advanced Features (Planned)
+- [ ] Tone curve editor
+- [ ] HSL/Color grading tools
+- [ ] Local adjustments (gradients, brushes)
+- [ ] Lens corrections database
+- [ ] Noise reduction (luminance and chroma)
+- [ ] Chromatic aberration correction
+- [ ] OCIO (OpenColorIO) integration
+- [ ] 3D LUT support
+
+### 🎯 Phase 6: Professional Tools (Future)
+- [ ] CLI interface for automation
+- [ ] Plugin system
+- [ ] Custom color spaces
+- [ ] Film emulation presets
+- [ ] Tethered shooting support
+- [ ] macOS and Windows builds
 
 ## Integration with Photo Managers
 
@@ -129,16 +217,78 @@ The application will:
 3. Save processed image when requested
 4. Return control to photo manager
 
-## License
+## 🆚 Comparison to Other RAW Processors
 
-MIT License - See LICENSE file for details
+| Feature | ZRaw Developer | Lightroom | Capture One | DaVinci Resolve |
+|---------|----------------|-----------|-------------|-----------------|
+| **Color Science** | ||||
+| ACES Workflow | ✅ Full | ❌ Inspired | ❌ Partial | ✅ Full |
+| Bradford Adaptation | ✅ | ✅ | ✅ | ✅ |
+| LCH Saturation | ✅ | ✅ | ✅ | ✅ |
+| Log Contrast | ✅ | ✅ | ✅ | ✅ |
+| HDR Output (PQ/HLG) | ✅ | ❌ | ❌ | ✅ |
+| **Performance** | ||||
+| GPU Acceleration | ✅ | ✅ | ✅ | ✅ |
+| Real-time Preview | ✅ | ✅ | ✅ | ✅ |
+| **Platform** | ||||
+| Linux Native | ✅ | ❌ | ❌ | ✅ |
+| Open Source | ✅ | ❌ | ❌ | ❌ |
+| **Price** | Free | $10/mo | $300 | $295 |
 
-## Contributing
+**ZRaw Developer offers DaVinci Resolve-level color science in a free, open-source package!**
 
-Contributions welcome! Please see CONTRIBUTING.md for guidelines.
+## 🤝 Contributing
 
-## Credits
+Contributions are welcome! We follow a professional development workflow:
 
-- LibRaw - RAW processing library
-- Qt6 - GUI framework
-- OpenGL - GPU acceleration
+- **Branch Protection** - All changes via Pull Requests
+- **CI/CD** - Automated testing on every PR
+- **Code Review** - Maintainer approval required
+- **Conventional Commits** - Semantic versioning
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+### Areas for Contribution
+- Export functionality (TIFF, JPEG with ICC profiles)
+- Batch processing
+- Lens correction database
+- Noise reduction algorithms
+- UI/UX improvements
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file for details.
+
+## 🙏 Credits
+
+**Core Libraries:**
+- [LibRaw](https://www.libraw.org/) - RAW processing library
+- [Qt6](https://www.qt.io/) - GUI framework
+- [OpenGL](https://www.opengl.org/) - GPU acceleration
+
+**Color Science References:**
+- [ACES](https://www.oscars.org/science-technology/sci-tech-projects/aces) - Academy Color Encoding System
+- [Rec.2020](https://www.itu.int/rec/R-REC-BT.2020) - Wide color gamut standard
+- [SMPTE ST 2084](https://ieeexplore.ieee.org/document/7291452) - PQ transfer function
+
+**Inspiration:**
+- DaVinci Resolve - Professional color grading
+- Lightroom - Workflow design
+- Capture One - Color accuracy
+
+## 📚 Documentation
+
+- [GITHUB_SETUP.md](GITHUB_SETUP.md) - Repository setup guide
+- [GITHUB_RULESET_SETUP.md](GITHUB_RULESET_SETUP.md) - Branch protection with rulesets
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+
+## 🔗 Links
+
+- **Repository**: https://github.com/jasonzondor/zraw-developer
+- **Issues**: https://github.com/jasonzondor/zraw-developer/issues
+- **Releases**: https://github.com/jasonzondor/zraw-developer/releases
+
+---
+
+**Built with ❤️ for photographers who care about color science.**
