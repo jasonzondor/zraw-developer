@@ -41,6 +41,8 @@ private slots:
     void onHighlightContrastChanged(float value);
     void onMidtoneContrastChanged(float value);
     void onShadowContrastChanged(float value);
+    void onWhitesChanged(float value);
+    void onBlacksChanged(float value);
 
 private:
     ImageViewer* m_viewer;
