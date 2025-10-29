@@ -22,7 +22,8 @@ jobs:
           qt6-base-dev \
           libraw-dev \
           libgl1-mesa-dev \
-          libglu1-mesa-dev
+          libglu1-mesa-dev \
+          libtiff-4-dev
     
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
