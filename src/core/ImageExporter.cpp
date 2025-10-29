@@ -85,7 +85,6 @@ bool ImageExporter::exportTIFF(const std::shared_ptr<ImageBuffer>& buffer, const
     
     // Write image data row by row
     const uint16_t* data = buffer->data();
-    size_t rowBytes = width * 3 * sizeof(uint16_t);
     
     for (uint32_t row = 0; row < height; ++row) {
         if (TIFFWriteScanline(tif, (void*)(data + row * width * 3), row, 0) < 0) {
