@@ -43,6 +43,9 @@ public:
     void setMidtoneContrast(float midtoneContrast);
     void setShadowContrast(float shadowContrast);
     
+    // Output mode: 0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES
+    void setOutputMode(int mode);
+    
     // Process image with current settings
     bool process();
     
@@ -78,6 +81,9 @@ private:
     float m_highlightContrast;
     float m_midtoneContrast;
     float m_shadowContrast;
+    
+    // Output mode (0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES)
+    int m_outputMode;
     
     // Vertex buffer for fullscreen quad
     GLuint m_vao;

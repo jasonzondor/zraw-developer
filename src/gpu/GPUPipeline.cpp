@@ -38,6 +38,9 @@ uniform float midtoneContrast;
 uniform float shadowContrast;
 uniform vec2 texelSize;
 
+// Output mode: 0=SDR (default), 1=HDR PQ, 2=HDR HLG, 3=Full ACES
+uniform int outputMode;
+
 // ============================================================================
 // COLOR SCIENCE FUNCTIONS
 // ============================================================================
@@ -385,6 +388,191 @@ vec3 expandToP3(vec3 color) {
     return srgbToP3 * color;
 }
 
+// ============================================================================
+// HDR OUTPUT TRANSFORMS (PQ and HLG)
+// ============================================================================
+
+// PQ (Perceptual Quantizer) - SMPTE ST 2084
+// Used for HDR10, Dolby Vision
+// Maps [0, 10000] nits to [0, 1]
+vec3 linearToPQ(vec3 linear) {
+    // PQ constants
+    const float m1 = 0.1593017578125;      // 2610 / 16384
+    const float m2 = 78.84375;              // 2523 / 32
+    const float c1 = 0.8359375;             // 3424 / 4096
+    const float c2 = 18.8515625;            // 2413 / 128
+    const float c3 = 18.6875;               // 2392 / 128
+    
+    // Normalize to 10,000 nits reference
+    vec3 Y = linear / 10000.0;
+    
+    // Apply PQ curve
+    vec3 Ym1 = pow(Y, vec3(m1));
+    vec3 pq = pow((c1 + c2 * Ym1) / (1.0 + c3 * Ym1), vec3(m2));
+    
+    return pq;
+}
+
+// Inverse PQ (for display)
+vec3 pqToLinear(vec3 pq) {
+    const float m1 = 0.1593017578125;
+    const float m2 = 78.84375;
+    const float c1 = 0.8359375;
+    const float c2 = 18.8515625;
+    const float c3 = 18.6875;
+    
+    vec3 Ym2 = pow(pq, vec3(1.0 / m2));
+    vec3 Y = pow(max(Ym2 - c1, 0.0) / (c2 - c3 * Ym2), vec3(1.0 / m1));
+    
+    return Y * 10000.0;
+}
+
+// HLG (Hybrid Log-Gamma) - ITU-R BT.2100
+// Used for broadcast HDR (BBC, NHK)
+// Backward compatible with SDR displays
+float linearToHLG(float linear) {
+    const float a = 0.17883277;
+    const float b = 0.28466892;  // 1 - 4a
+    const float c = 0.55991073;  // 0.5 - a * ln(4a)
+    
+    if (linear <= 1.0 / 12.0) {
+        return sqrt(3.0 * linear);
+    } else {
+        return a * log(12.0 * linear - b) + c;
+    }
+}
+
+vec3 linearToHLG(vec3 linear) {
+    return vec3(
+        linearToHLG(linear.r),
+        linearToHLG(linear.g),
+        linearToHLG(linear.b)
+    );
+}
+
+// Inverse HLG
+float hlgToLinear(float hlg) {
+    const float a = 0.17883277;
+    const float b = 0.28466892;
+    const float c = 0.55991073;
+    
+    if (hlg <= 0.5) {
+        return (hlg * hlg) / 3.0;
+    } else {
+        return (exp((hlg - c) / a) + b) / 12.0;
+    }
+}
+
+vec3 hlgToLinear(vec3 hlg) {
+    return vec3(
+        hlgToLinear(hlg.r),
+        hlgToLinear(hlg.g),
+        hlgToLinear(hlg.b)
+    );
+}
+
+// ============================================================================
+// FULL ACES WORKFLOW (AP0 → AP1 → RRT → ODT)
+// ============================================================================
+
+// sRGB to ACES AP0 (wide gamut working space)
+vec3 srgbToACES(vec3 color) {
+    mat3 m = mat3(
+        0.4397010, 0.3829780, 0.1773350,
+        0.0897923, 0.8134230, 0.0967616,
+        0.0175440, 0.1115440, 0.8707040
+    );
+    return m * color;
+}
+
+// ACES AP0 to sRGB
+vec3 acesToSRGB(vec3 color) {
+    mat3 m = mat3(
+         2.5216537, -1.1368990, -0.3847517,
+        -0.2764811,  1.3722640, -0.0957829,
+        -0.0153780, -0.1529744,  1.1683520
+    );
+    return m * color;
+}
+
+// Full ACES RRT (Reference Rendering Transform)
+// More complete than our simplified version
+vec3 acesRRT(vec3 color) {
+    // Convert to ACES AP1
+    color = acesAP0toAP1(color);
+    
+    // RRT Sweeteners
+    // 1. Glow module (adds bloom to highlights)
+    float glowGainIn = luminance(color);
+    float glowGain = max(0.0, glowGainIn - 0.5) * 0.12;
+    color = color + vec3(glowGain);
+    
+    // 2. Red modifier (desaturate reds in highlights)
+    float redRatio = color.r / (color.r + color.g + color.b + 0.001);
+    float redMod = smoothstep(0.5, 1.0, redRatio);
+    color.r = mix(color.r, color.r * 0.82, redMod * 0.4);
+    
+    // 3. Gamut compression (pre-tone mapping)
+    float lum = luminance(color);
+    vec3 chroma = (lum > 0.0001) ? color / lum : vec3(1.0);
+    float maxChroma = max(max(chroma.r, chroma.g), chroma.b);
+    if (maxChroma > 1.0) {
+        float compress = 1.0 + log(maxChroma) * 0.3;
+        chroma = chroma * (compress / maxChroma);
+        color = chroma * lum;
+    }
+    
+    // 4. Tone mapping curve (Krzysztof Narkowicz fit)
+    vec3 a = color * (color + 0.0245786) - 0.000090537;
+    vec3 b = color * (0.983729 * color + 0.4329510) + 0.238081;
+    color = a / b;
+    
+    // Convert back to AP0
+    color = acesAP1toAP0(color);
+    
+    return color;
+}
+
+// ACES ODT (Output Device Transform) for sRGB
+vec3 acesODTsRGB(vec3 color) {
+    // This is applied after RRT
+    // Handles final conversion to display space
+    
+    // Convert to AP1
+    color = acesAP0toAP1(color);
+    
+    // Apply sRGB rendering primaries transform
+    mat3 ap1ToSRGB = mat3(
+         1.7050509, -0.6217921, -0.0832588,
+        -0.1302597,  1.1408027, -0.0105430,
+        -0.0240033, -0.1289687,  1.1529720
+    );
+    color = ap1ToSRGB * color;
+    
+    // Apply gamma (sRGB EOTF inverse)
+    // Note: We're working in linear, so this is for reference
+    // Actual gamma is applied by display
+    
+    return color;
+}
+
+// Complete ACES pipeline (AP0 input → sRGB output)
+vec3 fullACESPipeline(vec3 color) {
+    // 1. Input: Assume we're in linear sRGB from RAW processing
+    //    Convert to ACES AP0 (scene-referred, wide gamut)
+    color = srgbToACES(color);
+    
+    // 2. RRT: Reference Rendering Transform
+    //    Scene-referred → output-referred
+    color = acesRRT(color);
+    
+    // 3. ODT: Output Device Transform for sRGB
+    //    Output-referred → display-referred
+    color = acesODTsRGB(color);
+    
+    return color;
+}
+
 void main() {
     // ========================================================================
     // PROPER COLOR SCIENCE PIPELINE ORDER
@@ -491,18 +679,38 @@ void main() {
         color = color + (color - blur) * sharpAmount;
     }
     
-    // 9. ACES Tone Mapping (film-like highlight rolloff)
-    //    Maps HDR scene-referred values to display-referred
-    //    Provides smooth highlight compression and pleasing color rendering
-    color = acesToneMap(max(color, 0.0));
+    // 9. Output Transform (tone mapping + color space conversion)
+    //    Different modes for different display types
     
-    // 10. Gamut Mapping (handle out-of-gamut colors)
-    //     ACES can produce colors outside sRGB gamut
-    //     Adaptive mapping preserves hue while compressing chroma
-    color = adaptiveGamutMap(color);
+    if (outputMode == 3) {
+        // Full ACES workflow (AP0 → RRT → ODT → sRGB)
+        // Most accurate, film-like rendering
+        color = fullACESPipeline(max(color, 0.0));
+        color = adaptiveGamutMap(color);
+        
+    } else if (outputMode == 1) {
+        // HDR PQ (Perceptual Quantizer) for HDR10/Dolby Vision
+        // Tone map first, then encode to PQ
+        color = acesToneMap(max(color, 0.0));
+        color = adaptiveGamutMap(color);
+        color = linearToPQ(color * 100.0); // Scale to nits (100 nits for SDR content)
+        
+    } else if (outputMode == 2) {
+        // HDR HLG (Hybrid Log-Gamma) for broadcast
+        // Tone map first, then encode to HLG
+        color = acesToneMap(max(color, 0.0));
+        color = adaptiveGamutMap(color);
+        color = linearToHLG(color);
+        
+    } else {
+        // Default: SDR output (simplified ACES)
+        // Standard dynamic range for typical displays
+        color = acesToneMap(max(color, 0.0));
+        color = adaptiveGamutMap(color);
+    }
     
-    // 11. Final clamp to valid display range [0, 1]
-    //     Should be mostly in-gamut after gamut mapping, but clamp for safety
+    // 10. Final clamp to valid display range [0, 1]
+    //     Should be mostly in-gamut after processing
     color = clamp(color, 0.0, 1.0);
     
     FragColor = vec4(color, 1.0);
@@ -518,6 +726,7 @@ GPUPipeline::GPUPipeline()
       m_highlights(0.0f), m_shadows(0.0f),
       m_vibrance(0.0f), m_saturation(0.0f),
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),
+      m_outputMode(0),  // Default to SDR
       m_vao(0), m_vbo(0) {
 }
 
@@ -670,6 +879,10 @@ void GPUPipeline::setShadowContrast(float shadowContrast) {
     m_shadowContrast = shadowContrast;
 }
 
+void GPUPipeline::setOutputMode(int mode) {
+    m_outputMode = mode;
+}
+
 bool GPUPipeline::process() {
     if (!m_inputTexture || !m_fbo) {
         std::cerr << "Pipeline not ready for processing" << std::endl;
@@ -704,6 +917,7 @@ bool GPUPipeline::process() {
     m_shader->setUniform("midtoneContrast", m_midtoneContrast);
     m_shader->setUniform("shadowContrast", m_shadowContrast);
     m_shader->setUniform("texelSize", 1.0f / m_width, 1.0f / m_height);
+    m_shader->setUniform("outputMode", m_outputMode);
     
     // Bind texture
     glActiveTexture(GL_TEXTURE0);
