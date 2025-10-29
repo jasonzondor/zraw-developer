@@ -2,40 +2,41 @@
 
 This guide will help you set up branch protection, PR requirements, and releases for ZRaw Developer.
 
-## Step 1: Enable Branch Protection
+## Step 1: Enable Branch Protection (Using Rulesets - Recommended)
 
-### Protect `main` branch:
+**Note:** GitHub Rulesets are the modern replacement for classic branch protection rules. They're more flexible and future-proof.
+
+### Quick Setup:
 
 1. Go to your repository on GitHub
-2. Click **Settings** → **Branches**
-3. Click **Add branch protection rule**
-4. Configure as follows:
+2. Click **Settings** → **Rules** → **Rulesets**
+3. Click **New ruleset** → **New branch ruleset**
 
-   **Branch name pattern:** `main`
-   
-   ✅ **Require a pull request before merging**
-   - ✅ Require approvals: 1
-   - ✅ Dismiss stale pull request approvals when new commits are pushed
-   - ✅ Require review from Code Owners (optional)
-   
-   ✅ **Require status checks to pass before merging**
-   - ✅ Require branches to be up to date before merging
-   - Add status check: `build` (from CI workflow)
-   
-   ✅ **Require conversation resolution before merging**
-   
-   ✅ **Do not allow bypassing the above settings**
-   
-   ❌ Allow force pushes (keep disabled)
-   ❌ Allow deletions (keep disabled)
+### Configure Ruleset for `main`:
 
-5. Click **Create** or **Save changes**
+**Ruleset Name:** `Protect main branch`
+**Enforcement status:** `Active`
+**Target branches:** `main`
 
-### Optional: Protect `develop` branch:
+**Enable these rules:**
+- ✅ Require a pull request before merging (1 approval)
+- ✅ Require status checks to pass (`build` from CI)
+- ✅ Require conversation resolution
+- ✅ Block force pushes
+- ✅ Require linear history (optional but recommended)
+- ✅ Restrict deletions
 
-Repeat the above for `develop` branch with slightly relaxed rules:
-- Require approvals: 0 (or 1 if you have multiple contributors)
-- Allow force pushes: ❌ (still disabled)
+Click **Create**
+
+### Detailed Instructions:
+
+See **GITHUB_RULESET_SETUP.md** for complete step-by-step instructions.
+
+### Alternative: Classic Branch Protection
+
+If you prefer classic rules (not recommended for new repos):
+- Go to **Settings** → **Branches** → **Add rule**
+- See GITHUB_RULESET_SETUP.md for comparison
 
 ## Step 2: Set Up GitHub Actions
 
