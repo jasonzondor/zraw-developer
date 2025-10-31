@@ -35,6 +35,9 @@ public:
     float aperture() const;
     int iso() const;
     
+    // Get camera white balance (as-shot)
+    float getCameraWBTemperature() const;  // Returns color temperature in Kelvin
+    
     // Error handling
     std::string lastError() const { return m_lastError; }
 

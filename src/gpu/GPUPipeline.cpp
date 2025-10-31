@@ -175,40 +175,32 @@ vec3 bradfordAdaptation(vec3 color, vec3 srcWhite, vec3 dstWhite) {
     return adaptMat * color;
 }
 
-// Improved white balance using proper chromatic adaptation
+// White balance - relative adjustment from camera WB
+// temp: relative adjustment (-100 to +100), 0 = neutral (camera WB)
+// tint: green-magenta shift (-100 to +100)
 vec3 applyWhiteBalance(vec3 color, float temp, float tint) {
+    // If neutral, skip
     if (abs(temp) < 0.1 && abs(tint) < 0.1) {
         return color;
     }
     
-    // Convert temperature from -100/+100 to Kelvin-like adjustment
-    // D65 is our reference (6500K)
+    // Simple RGB multiplier approach (like Lightroom)
+    // This is more intuitive and predictable than Bradford
     float tempFactor = temp / 100.0;
     float tintFactor = tint / 100.0;
     
-    // Create source and destination white points
-    // D65 reference white in XYZ
-    vec3 srcWhite = vec3(0.95047, 1.0, 1.08883);
+    // Temperature adjustment
+    // Positive = warmer (boost red/yellow, reduce blue)
+    // Negative = cooler (boost blue, reduce red/yellow)
+    vec3 result = color;
+    result.r *= 1.0 + tempFactor * 0.5;      // Red channel
+    result.b *= 1.0 - tempFactor * 0.5;      // Blue channel
     
-    // Adjust white point based on temperature and tint
-    vec3 dstWhite = srcWhite;
+    // Tint adjustment  
+    // Positive = more green, Negative = more magenta
+    result.g *= 1.0 + tintFactor * 0.3;      // Green channel
     
-    // Temperature: shift along Planckian locus (simplified)
-    // Warmer = more red, cooler = more blue
-    dstWhite.x *= 1.0 + tempFactor * 0.3;  // X (red)
-    dstWhite.z *= 1.0 - tempFactor * 0.3;  // Z (blue)
-    
-    // Tint: shift perpendicular to Planckian locus
-    // Positive = more green, negative = more magenta
-    dstWhite.y *= 1.0 + tintFactor * 0.2;  // Y (green)
-    
-    // Normalize
-    dstWhite = normalize(dstWhite) * length(srcWhite);
-    
-    // Apply Bradford chromatic adaptation
-    vec3 xyz = rgbToXYZ(color);
-    xyz = bradfordAdaptation(xyz, srcWhite, dstWhite);
-    return xyzToRGB(xyz);
+    return result;
 }
 
 // ============================================================================
@@ -659,7 +651,8 @@ void main() {
     vec3 color = texture(inputTexture, TexCoord).rgb;
     
     // 2. White Balance FIRST (in linear space, before exposure)
-    //    This is correct because white balance is about the scene illuminant
+    //    Camera WB already applied, this is for fine-tuning
+    //    Temperature is relative (-100 to +100), 0 = neutral
     if (abs(temperature) > 0.1 || abs(tint) > 0.1) {
         color = applyWhiteBalance(color, temperature, tint);
     }
@@ -881,7 +874,7 @@ GPUPipeline::GPUPipeline()
       m_shader(std::make_unique<ShaderProgram>()),
       m_width(0), m_height(0),
       m_exposure(0.0f), m_contrast(0.0f), m_sharpness(0.0f),
-      m_temperature(0.0f), m_tint(0.0f),
+      m_temperature(0.0f), m_tint(0.0f),  // 0 = neutral (camera WB)
       m_highlights(0.0f), m_shadows(0.0f),
       m_vibrance(0.0f), m_saturation(0.0f),
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),

@@ -92,6 +92,24 @@ void AdjustmentPanel::createUI() {
     colorContent->setSpacing(8);
     colorContent->setContentsMargins(12, 8, 12, 8);
     
+    // Temperature (White Balance) - relative adjustment
+    auto* temperatureRow = createSliderRow("Temperature", &m_temperatureSlider, &m_temperatureLabel,
+                                           -100, 100, 0);  // -100 to +100, default 0 (neutral)
+    colorContent->addWidget(temperatureRow);
+    connect(m_temperatureSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateTemperatureLabel(value);
+        emit temperatureChanged(static_cast<float>(value));
+    });
+    
+    // Tint (White Balance)
+    auto* tintRow = createSliderRow("Tint", &m_tintSlider, &m_tintLabel,
+                                    -100, 100, 0);
+    colorContent->addWidget(tintRow);
+    connect(m_tintSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateTintLabel(value);
+        emit tintChanged(static_cast<float>(value));
+    });
+    
     // Vibrance
     auto* vibranceRow = createSliderRow("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
                                         -100, 100, 0);
@@ -315,7 +333,14 @@ void AdjustmentPanel::updateSharpnessLabel(int value) {
 }
 
 void AdjustmentPanel::updateTemperatureLabel(int value) {
-    m_temperatureLabel->setText(QString::number(value));
+    // Show relative adjustment from camera WB
+    if (value == 0) {
+        m_temperatureLabel->setText("0 (As Shot)");
+    } else if (value > 0) {
+        m_temperatureLabel->setText("+" + QString::number(value) + " (Warmer)");
+    } else {
+        m_temperatureLabel->setText(QString::number(value) + " (Cooler)");
+    }
 }
 
 void AdjustmentPanel::updateTintLabel(int value) {
