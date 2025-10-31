@@ -49,7 +49,7 @@ bool RawProcessor::processToRGB() {
         std::cout << "Detected Bayer sensor, using AHD demosaicing" << std::endl;
     }
     
-    // Use camera white balance
+    // Use camera white balance - this is the most accurate
     params.use_camera_wb = 1;
     
     // Output 16-bit for better quality
@@ -127,6 +127,45 @@ float RawProcessor::aperture() const {
 
 int RawProcessor::iso() const {
     return static_cast<int>(m_libraw->imgdata.other.iso_speed);
+}
+
+float RawProcessor::getCameraWBTemperature() const {
+    // Get camera white balance multipliers
+    // cam_mul[0] = red, cam_mul[1] = green, cam_mul[2] = blue, cam_mul[3] = green2
+    float r_mul = m_libraw->imgdata.color.cam_mul[0];
+    float g_mul = m_libraw->imgdata.color.cam_mul[1];
+    float b_mul = m_libraw->imgdata.color.cam_mul[2];
+    
+    // Avoid division by zero
+    if (g_mul < 0.001f || r_mul < 0.001f || b_mul < 0.001f) {
+        return 5500.0f;  // Default daylight
+    }
+    
+    // Calculate red/blue ratio (normalized by green)
+    float r_ratio = r_mul / g_mul;
+    float b_ratio = b_mul / g_mul;
+    
+    // Approximate color temperature from red/blue ratio
+    // This is a simplified approximation based on Planckian locus
+    // Higher red ratio = warmer (lower Kelvin), higher blue ratio = cooler (higher Kelvin)
+    float ratio = r_ratio / b_ratio;
+    
+    // Empirical formula to convert ratio to Kelvin (approximate)
+    // Based on typical camera WB behavior
+    float kelvin;
+    if (ratio > 1.0f) {
+        // Warm light (tungsten to daylight)
+        kelvin = 2000.0f + (ratio - 1.0f) * 3500.0f;
+    } else {
+        // Cool light (daylight to shade)
+        kelvin = 5500.0f + (1.0f - ratio) * 4500.0f;
+    }
+    
+    // Clamp to reasonable range
+    if (kelvin < 2000.0f) kelvin = 2000.0f;
+    if (kelvin > 10000.0f) kelvin = 10000.0f;
+    
+    return kelvin;
 }
 
 void RawProcessor::setError(const std::string& error) {

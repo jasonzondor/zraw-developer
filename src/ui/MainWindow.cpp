@@ -195,8 +195,15 @@ bool MainWindow::processRawFile(const QString& filepath) {
     
     m_viewer->doneCurrent();
     
+    // Camera WB is already applied during RAW processing
+    // Temperature slider is for relative adjustment from camera WB
+    float cameraWBKelvin = m_rawProcessor->getCameraWBTemperature();
+    std::cout << "Camera WB temperature: " << cameraWBKelvin << "K (applied during RAW processing)" << std::endl;
+    m_adjustmentPanel->setTemperature(0.0f);  // 0 = use camera WB as-is
+    m_gpuPipeline->setTemperature(0.0f);
+    
     std::cout << "Loading XMP adjustments..." << std::endl;
-    // Load XMP adjustments if they exist
+    // Load XMP adjustments if they exist (this will override camera WB if saved)
     loadXMPAdjustments();
     
     std::cout << "Image processing complete" << std::endl;
@@ -447,7 +454,8 @@ void MainWindow::loadXMPAdjustments() {
         m_adjustmentPanel->setExposure(adjustments.exposure);
         m_adjustmentPanel->setContrast(adjustments.contrast);
         m_adjustmentPanel->setSharpness(adjustments.sharpness);
-        // Note: temperature and tint sliders removed (replaced with whites/blacks)
+        m_adjustmentPanel->setTemperature(adjustments.temperature);
+        m_adjustmentPanel->setTint(adjustments.tint);
         m_adjustmentPanel->setHighlights(adjustments.highlights);
         m_adjustmentPanel->setShadows(adjustments.shadows);
         m_adjustmentPanel->setVibrance(adjustments.vibrance);
@@ -455,8 +463,8 @@ void MainWindow::loadXMPAdjustments() {
         m_adjustmentPanel->setHighlightContrast(adjustments.highlightContrast);
         m_adjustmentPanel->setMidtoneContrast(adjustments.midtoneContrast);
         m_adjustmentPanel->setShadowContrast(adjustments.shadowContrast);
-        m_adjustmentPanel->setWhites(0);  // Default whites
-        m_adjustmentPanel->setBlacks(0);  // Default blacks
+        m_adjustmentPanel->setWhites(0.0f);  // TODO: Add to XMP
+        m_adjustmentPanel->setBlacks(0.0f);  // TODO: Add to XMP
     }
     
     m_loadingXMP = false;

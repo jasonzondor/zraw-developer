@@ -175,40 +175,107 @@ vec3 bradfordAdaptation(vec3 color, vec3 srcWhite, vec3 dstWhite) {
     return adaptMat * color;
 }
 
-// Improved white balance using proper chromatic adaptation
+// White balance - relative adjustment from camera WB
+// temp: relative adjustment (-100 to +100), 0 = neutral (camera WB)
+// tint: green-magenta shift (-100 to +100)
 vec3 applyWhiteBalance(vec3 color, float temp, float tint) {
+    // If neutral, skip
     if (abs(temp) < 0.1 && abs(tint) < 0.1) {
         return color;
     }
     
-    // Convert temperature from -100/+100 to Kelvin-like adjustment
-    // D65 is our reference (6500K)
+    // Simple RGB multiplier approach (like Lightroom)
+    // This is more intuitive and predictable than Bradford
     float tempFactor = temp / 100.0;
     float tintFactor = tint / 100.0;
     
-    // Create source and destination white points
-    // D65 reference white in XYZ
-    vec3 srcWhite = vec3(0.95047, 1.0, 1.08883);
+    // Temperature adjustment
+    // Positive = warmer (boost red/yellow, reduce blue)
+    // Negative = cooler (boost blue, reduce red/yellow)
+    vec3 result = color;
+    result.r *= 1.0 + tempFactor * 0.5;      // Red channel
+    result.b *= 1.0 - tempFactor * 0.5;      // Blue channel
     
-    // Adjust white point based on temperature and tint
-    vec3 dstWhite = srcWhite;
+    // Tint adjustment  
+    // Positive = more green, Negative = more magenta
+    result.g *= 1.0 + tintFactor * 0.3;      // Green channel
     
-    // Temperature: shift along Planckian locus (simplified)
-    // Warmer = more red, cooler = more blue
-    dstWhite.x *= 1.0 + tempFactor * 0.3;  // X (red)
-    dstWhite.z *= 1.0 - tempFactor * 0.3;  // Z (blue)
+    return result;
+}
+
+// ============================================================================
+// PARAMETRIC TONE CURVE FUNCTIONS
+// ============================================================================
+
+// Parametric tone curve for highlights/shadows
+// Uses a smooth S-curve that adjusts based on the control value
+// x: input luminance (0-1)
+// control: adjustment amount (-1 to +1)
+// center: where the curve pivots (0-1)
+// width: how wide the affected range is
+float parametricCurve(float x, float control, float center, float width) {
+    if (abs(control) < 0.001) return x;
     
-    // Tint: shift perpendicular to Planckian locus
-    // Positive = more green, negative = more magenta
-    dstWhite.y *= 1.0 + tintFactor * 0.2;  // Y (green)
+    // Normalized distance from center
+    float dist = (x - center) / width;
     
-    // Normalize
-    dstWhite = normalize(dstWhite) * length(srcWhite);
+    // Smooth falloff using a modified sigmoid
+    // This creates a natural S-curve
+    float weight = 1.0 / (1.0 + exp(-dist * 6.0));
     
-    // Apply Bradford chromatic adaptation
-    vec3 xyz = rgbToXYZ(color);
-    xyz = bradfordAdaptation(xyz, srcWhite, dstWhite);
-    return xyzToRGB(xyz);
+    // Apply the adjustment with smooth blending
+    float adjustment = control * weight;
+    
+    // Use a power function for natural-looking tone adjustment
+    // Invert the gamma so positive control brightens
+    float gamma = 1.0 / (1.0 + adjustment);
+    return pow(x, gamma);
+}
+
+// Parametric curve for whites/blacks (affects endpoints)
+// This adjusts where the curve clips to white/black
+float parametricEndpoint(float x, float control, bool isWhite) {
+    if (abs(control) < 0.001) return x;
+    
+    if (isWhite) {
+        // Whites: compress or expand the upper end
+        // Positive control = brighter whites (expand)
+        // Negative control = darker whites (compress)
+        float pivot = 0.18;  // 18% gray
+        float scale = 1.0 + control * 0.5;
+        return pivot + (x - pivot) * scale;
+    } else {
+        // Blacks: compress or expand the lower end
+        float pivot = 0.18;
+        float scale = 1.0 + control * 0.5;
+        return pivot + (x - pivot) * scale;
+    }
+}
+
+// Apply parametric curve to RGB while preserving color ratios
+vec3 applyParametricToRGB(vec3 color, float control, float center, float width) {
+    float lum = luminance(color);
+    if (lum < 0.00001) return color;
+    
+    // Apply curve to luminance
+    float newLum = parametricCurve(lum, control, center, width);
+    
+    // Scale RGB proportionally
+    vec3 newColor = color * (newLum / lum);
+    
+    // Per-channel soft clipping
+    const float threshold = 1.0;
+    const float shoulder = 0.2;
+    
+    for (int i = 0; i < 3; i++) {
+        if (newColor[i] > threshold) {
+            float excess = newColor[i] - threshold;
+            float compressed = threshold + shoulder * (excess / (excess + shoulder));
+            newColor[i] = compressed;
+        }
+    }
+    
+    return newColor;
 }
 
 // ============================================================================
@@ -584,47 +651,64 @@ void main() {
     vec3 color = texture(inputTexture, TexCoord).rgb;
     
     // 2. White Balance FIRST (in linear space, before exposure)
-    //    This is correct because white balance is about the scene illuminant
+    //    Camera WB already applied, this is for fine-tuning
+    //    Temperature is relative (-100 to +100), 0 = neutral
     if (abs(temperature) > 0.1 || abs(tint) > 0.1) {
         color = applyWhiteBalance(color, temperature, tint);
     }
     
-    // 3. Exposure (linear space multiplication)
-    color *= pow(2.0, exposure);
-    
-    // 3.5. Whites and Blacks adjustment (tone curve adjustment)
-    //      Whites: brightens/darkens the bright tones (above middle gray)
-    //      Blacks: brightens/darkens the dark tones (below middle gray)
-    if (abs(whites) > 0.1 || abs(blacks) > 0.1) {
-        float lum = luminance(color);
+    // 3. Exposure with per-channel highlight compression
+    //    Apply exposure, then compress each channel independently
+    //    This prevents color shifts from differential clipping
+    if (abs(exposure) > 0.01) {
+        // Apply exposure
+        color *= pow(2.0, exposure);
         
-        // Smooth transition masks
-        // Whites affects upper half of tonal range
-        float whitesMask = smoothstep(0.18, 0.9, lum);  // 18% gray to near-white
-        // Blacks affects lower half of tonal range
-        float blacksMask = smoothstep(0.18, 0.01, lum);  // 18% gray to near-black
+        // Per-channel soft clipping to prevent color shifts
+        // This is key: compress R, G, B independently so they don't clip at different rates
+        const float threshold = 1.0;
+        const float shoulder = 0.2;  // Shoulder width for smooth rolloff
         
-        // Apply adjustments (convert from -100/+100 to multiplier)
-        float whitesFactor = 1.0 + (whites / 100.0) * whitesMask * 0.5;
-        float blacksFactor = 1.0 + (blacks / 100.0) * blacksMask * 0.5;
-        
-        color *= whitesFactor * blacksFactor;
+        for (int i = 0; i < 3; i++) {
+            if (color[i] > threshold) {
+                // Smooth shoulder compression
+                // Uses a modified Reinhard curve for gentle rolloff
+                float excess = color[i] - threshold;
+                float compressed = threshold + shoulder * (excess / (excess + shoulder));
+                color[i] = compressed;
+            }
+        }
     }
     
-    // 4. Highlights and Shadows Recovery (in linear space)
-    //    Use improved luminance calculation and smooth falloffs
-    if (abs(highlights) > 0.1 || abs(shadows) > 0.1) {
-        float lum = luminance(color);
-        
-        // Gaussian-like falloff for smoother transitions
-        float highlightMask = exp(-pow((1.0 - lum) / 0.3, 2.0));
-        float shadowMask = exp(-pow(lum / 0.3, 2.0));
-        
-        // Apply recovery with better falloff
-        float highlightFactor = 1.0 + (highlights / 100.0) * highlightMask * 0.8;
-        float shadowFactor = 1.0 + (shadows / 100.0) * shadowMask * 0.8;
-        
-        color *= highlightFactor * shadowFactor;
+    // 3.5. Whites and Blacks adjustment (parametric curve)
+    //      Whites: adjusts the upper tonal range with smooth curve
+    //      Blacks: adjusts the lower tonal range with smooth curve
+    if (abs(whites) > 0.1) {
+        // Whites: parametric curve centered on bright tones
+        float control = whites / 100.0;
+        color = applyParametricToRGB(color, control, 0.75, 0.3);
+    }
+    
+    if (abs(blacks) > 0.1) {
+        // Blacks: parametric curve centered on dark tones
+        float control = blacks / 100.0;
+        color = applyParametricToRGB(color, control, 0.25, 0.3);
+    }
+    
+    // 4. Highlights and Shadows Recovery (parametric curve)
+    //      Highlights: targets very bright areas with narrow curve
+    //      Shadows: targets very dark areas with narrow curve
+    if (abs(highlights) > 0.1) {
+        // Highlights: narrow parametric curve centered on bright areas
+        float control = highlights / 100.0;
+        color = applyParametricToRGB(color, control, 0.9, 0.15);
+    }
+    
+    if (abs(shadows) > 0.1) {
+        // Shadows: very narrow parametric curve centered on dark areas
+        // Use tighter width to only affect true shadows
+        float control = shadows / 100.0;
+        color = applyParametricToRGB(color, control, 0.08, 0.1);
     }
     
     // 5. Global Contrast (in LOG space for perceptual uniformity)
@@ -790,12 +874,13 @@ GPUPipeline::GPUPipeline()
       m_shader(std::make_unique<ShaderProgram>()),
       m_width(0), m_height(0),
       m_exposure(0.0f), m_contrast(0.0f), m_sharpness(0.0f),
-      m_temperature(0.0f), m_tint(0.0f),
+      m_temperature(0.0f), m_tint(0.0f),  // 0 = neutral (camera WB)
       m_highlights(0.0f), m_shadows(0.0f),
       m_vibrance(0.0f), m_saturation(0.0f),
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),
       m_whites(0.0f), m_blacks(0.0f),
       m_outputMode(0),  // Default to SDR
+      m_bypassAdjustments(false),
       m_vao(0), m_vbo(0) {
 }
 
@@ -882,7 +967,7 @@ bool GPUPipeline::uploadImage(std::shared_ptr<ImageBuffer> buffer) {
     m_width = buffer->width();
     m_height = buffer->height();
     
-    // Create texture
+    // Create input texture (for processing)
     m_inputTexture = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target2D);
     m_inputTexture->setFormat(QOpenGLTexture::RGB16_UNorm);
     m_inputTexture->setSize(m_width, m_height);
@@ -892,10 +977,38 @@ bool GPUPipeline::uploadImage(std::shared_ptr<ImageBuffer> buffer) {
     m_inputTexture->setMagnificationFilter(QOpenGLTexture::Linear);
     m_inputTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
     
+    // Create original texture (for before/after comparison)
+    // This stores the processed output with zero adjustments
+    m_originalTexture = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target2D);
+    m_originalTexture->setFormat(QOpenGLTexture::RGB16_UNorm);
+    m_originalTexture->setSize(m_width, m_height);
+    m_originalTexture->allocateStorage();
+    m_originalTexture->setMinificationFilter(QOpenGLTexture::Linear);
+    m_originalTexture->setMagnificationFilter(QOpenGLTexture::Linear);
+    m_originalTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
+    
     // Create framebuffer for output
     QOpenGLFramebufferObjectFormat format;
     format.setInternalTextureFormat(GL_RGB16);
     m_fbo = std::make_unique<QOpenGLFramebufferObject>(m_width, m_height, format);
+    
+    // Process once with zero adjustments to create the "original" reference
+    bool oldBypass = m_bypassAdjustments;
+    m_bypassAdjustments = true;
+    process();
+    
+    // Copy the framebuffer result to original texture
+    m_fbo->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_originalTexture->textureId());
+    // Use glCopyTexSubImage2D since we already allocated storage
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_width, m_height);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    m_fbo->release();
+    
+    m_bypassAdjustments = oldBypass;
+    
+    std::cout << "Created original texture: " << m_originalTexture->textureId() << std::endl;
     
     return true;
 }
@@ -960,6 +1073,10 @@ void GPUPipeline::setOutputMode(int mode) {
     m_outputMode = mode;
 }
 
+void GPUPipeline::setBypassAdjustments(bool bypass) {
+    m_bypassAdjustments = bypass;
+}
+
 bool GPUPipeline::process() {
     if (!m_inputTexture || !m_fbo) {
         std::cerr << "Pipeline not ready for processing" << std::endl;
@@ -979,22 +1096,22 @@ bool GPUPipeline::process() {
     // Use shader
     m_shader->bind();
     
-    // Set uniforms
+    // Set uniforms (bypass all adjustments if showing "before")
     m_shader->setUniform("inputTexture", 0);
-    m_shader->setUniform("exposure", m_exposure);
-    m_shader->setUniform("contrast", m_contrast);
-    m_shader->setUniform("sharpness", m_sharpness);
-    m_shader->setUniform("temperature", m_temperature);
-    m_shader->setUniform("tint", m_tint);
-    m_shader->setUniform("highlights", m_highlights);
-    m_shader->setUniform("shadows", m_shadows);
-    m_shader->setUniform("vibrance", m_vibrance);
-    m_shader->setUniform("saturation", m_saturation);
-    m_shader->setUniform("highlightContrast", m_highlightContrast);
-    m_shader->setUniform("midtoneContrast", m_midtoneContrast);
-    m_shader->setUniform("shadowContrast", m_shadowContrast);
-    m_shader->setUniform("whites", m_whites);
-    m_shader->setUniform("blacks", m_blacks);
+    m_shader->setUniform("exposure", m_bypassAdjustments ? 0.0f : m_exposure);
+    m_shader->setUniform("contrast", m_bypassAdjustments ? 0.0f : m_contrast);
+    m_shader->setUniform("sharpness", m_bypassAdjustments ? 0.0f : m_sharpness);
+    m_shader->setUniform("temperature", m_bypassAdjustments ? 0.0f : m_temperature);
+    m_shader->setUniform("tint", m_bypassAdjustments ? 0.0f : m_tint);
+    m_shader->setUniform("highlights", m_bypassAdjustments ? 0.0f : m_highlights);
+    m_shader->setUniform("shadows", m_bypassAdjustments ? 0.0f : m_shadows);
+    m_shader->setUniform("vibrance", m_bypassAdjustments ? 0.0f : m_vibrance);
+    m_shader->setUniform("saturation", m_bypassAdjustments ? 0.0f : m_saturation);
+    m_shader->setUniform("highlightContrast", m_bypassAdjustments ? 0.0f : m_highlightContrast);
+    m_shader->setUniform("midtoneContrast", m_bypassAdjustments ? 0.0f : m_midtoneContrast);
+    m_shader->setUniform("shadowContrast", m_bypassAdjustments ? 0.0f : m_shadowContrast);
+    m_shader->setUniform("whites", m_bypassAdjustments ? 0.0f : m_whites);
+    m_shader->setUniform("blacks", m_bypassAdjustments ? 0.0f : m_blacks);
     m_shader->setUniform("texelSize", 1.0f / m_width, 1.0f / m_height);
     m_shader->setUniform("outputMode", m_outputMode);
     
@@ -1034,7 +1151,15 @@ std::shared_ptr<ImageBuffer> GPUPipeline::downloadImage() {
 }
 
 GLuint GPUPipeline::getOutputTexture() const {
-    return m_fbo ? m_fbo->texture() : 0;
+    // Return original texture when showing "before", otherwise return processed output
+    if (m_bypassAdjustments && m_originalTexture) {
+        GLuint texId = m_originalTexture->textureId();
+        std::cout << "Returning original texture: " << texId << std::endl;
+        return texId;
+    }
+    GLuint texId = m_fbo ? m_fbo->texture() : 0;
+    std::cout << "Returning processed texture: " << texId << std::endl;
+    return texId;
 }
 
 } // namespace zraw

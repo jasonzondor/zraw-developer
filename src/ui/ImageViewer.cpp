@@ -75,8 +75,38 @@ ImageViewer::ImageViewer(QWidget* parent)
       m_displayVAO(0), m_displayVBO(0), m_displayShader(0),
       m_zoom(1.0f), m_panOffset(0.0f, 0.0f),
       m_isPanning(false),
-      m_viewportX(0), m_viewportY(0), m_viewportWidth(0), m_viewportHeight(0) {
+      m_viewportX(0), m_viewportY(0), m_viewportWidth(0), m_viewportHeight(0),
+      m_showBefore(false) {
     setMouseTracking(true);
+    
+    // Create before/after toggle button
+    m_beforeAfterButton = new QPushButton("Before", this);
+    m_beforeAfterButton->setCheckable(true);
+    m_beforeAfterButton->setFixedSize(80, 30);
+    m_beforeAfterButton->setStyleSheet(
+        "QPushButton {"
+        "  background-color: rgba(50, 50, 50, 180);"
+        "  color: white;"
+        "  border: 1px solid rgba(100, 100, 100, 200);"
+        "  border-radius: 4px;"
+        "  font-size: 12px;"
+        "  font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(70, 70, 70, 200);"
+        "}"
+        "QPushButton:checked {"
+        "  background-color: rgba(74, 158, 255, 200);"
+        "  border-color: rgba(74, 158, 255, 255);"
+        "}"
+    );
+    
+    connect(m_beforeAfterButton, &QPushButton::toggled, this, [this](bool checked) {
+        setShowBefore(checked);
+        m_beforeAfterButton->setText(checked ? "After" : "Before");
+    });
+    
+    updateButtonPosition();
 }
 
 ImageViewer::~ImageViewer() {
@@ -98,6 +128,16 @@ void ImageViewer::setGPUPipeline(std::shared_ptr<GPUPipeline> pipeline) {
 
 void ImageViewer::updateDisplay() {
     update();
+}
+
+void ImageViewer::setShowBefore(bool show) {
+    m_showBefore = show;
+    if (m_pipeline) {
+        std::cout << "Toggling before/after: " << (show ? "showing original" : "showing edited") << std::endl;
+        m_pipeline->setBypassAdjustments(show);
+        // Just redraw - getOutputTexture() will return the right texture
+        update();
+    }
 }
 
 void ImageViewer::initializeGL() {
@@ -162,7 +202,14 @@ void ImageViewer::paintGL() {
     }
 }
 
+void ImageViewer::updateButtonPosition() {
+    // Position button in bottom-left corner with margin
+    int margin = 15;
+    m_beforeAfterButton->move(margin, height() - m_beforeAfterButton->height() - margin);
+}
+
 void ImageViewer::resizeGL(int w, int h) {
+    updateButtonPosition();
     // Always use full viewport - zoom and aspect ratio handled in shader
     m_viewportX = 0;
     m_viewportY = 0;
