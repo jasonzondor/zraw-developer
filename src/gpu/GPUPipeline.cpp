@@ -612,7 +612,7 @@ void main() {
         }
     }
     
-    // 3.5. Whites and Blacks adjustment (tone curve adjustment)
+    // 3.5. Whites and Blacks adjustment (ratio-preserving with per-channel compression)
     //      Whites: brightens/darkens the bright tones (above middle gray)
     //      Blacks: brightens/darkens the dark tones (below middle gray)
     if (abs(whites) > 0.1 || abs(blacks) > 0.1) {
@@ -624,15 +624,36 @@ void main() {
         // Blacks affects lower half of tonal range
         float blacksMask = smoothstep(0.18, 0.01, lum);  // 18% gray to near-black
         
-        // Apply adjustments (convert from -100/+100 to multiplier)
+        // Calculate adjustment factors
         float whitesFactor = 1.0 + (whites / 100.0) * whitesMask * 0.5;
         float blacksFactor = 1.0 + (blacks / 100.0) * blacksMask * 0.5;
+        float combinedFactor = whitesFactor * blacksFactor;
         
-        color *= whitesFactor * blacksFactor;
+        // Apply ratio-preserving adjustment with per-channel compression
+        if (abs(combinedFactor - 1.0) > 0.01) {
+            float newLum = lum * combinedFactor;
+            
+            // Scale color proportionally
+            vec3 newColor = color * (newLum / max(lum, 0.00001));
+            
+            // Per-channel soft clipping to prevent color shifts
+            const float threshold = 1.0;
+            const float shoulder = 0.2;
+            
+            for (int i = 0; i < 3; i++) {
+                if (newColor[i] > threshold) {
+                    float excess = newColor[i] - threshold;
+                    float compressed = threshold + shoulder * (excess / (excess + shoulder));
+                    newColor[i] = compressed;
+                }
+            }
+            
+            color = newColor;
+        }
     }
     
-    // 4. Highlights and Shadows Recovery (in linear space)
-    //    Use improved luminance calculation and smooth falloffs
+    // 4. Highlights and Shadows Recovery (ratio-preserving with per-channel compression)
+    //    Similar to exposure, use luminance-based scaling with per-channel soft clipping
     if (abs(highlights) > 0.1 || abs(shadows) > 0.1) {
         float lum = luminance(color);
         
@@ -640,11 +661,32 @@ void main() {
         float highlightMask = exp(-pow((1.0 - lum) / 0.3, 2.0));
         float shadowMask = exp(-pow(lum / 0.3, 2.0));
         
-        // Apply recovery with better falloff
+        // Calculate adjustment factors
         float highlightFactor = 1.0 + (highlights / 100.0) * highlightMask * 0.8;
         float shadowFactor = 1.0 + (shadows / 100.0) * shadowMask * 0.8;
+        float combinedFactor = highlightFactor * shadowFactor;
         
-        color *= highlightFactor * shadowFactor;
+        // Apply ratio-preserving adjustment with per-channel compression
+        if (abs(combinedFactor - 1.0) > 0.01) {
+            float newLum = lum * combinedFactor;
+            
+            // Scale color proportionally
+            vec3 newColor = color * (newLum / max(lum, 0.00001));
+            
+            // Per-channel soft clipping to prevent color shifts
+            const float threshold = 1.0;
+            const float shoulder = 0.2;
+            
+            for (int i = 0; i < 3; i++) {
+                if (newColor[i] > threshold) {
+                    float excess = newColor[i] - threshold;
+                    float compressed = threshold + shoulder * (excess / (excess + shoulder));
+                    newColor[i] = compressed;
+                }
+            }
+            
+            color = newColor;
+        }
     }
     
     // 5. Global Contrast (in LOG space for perceptual uniformity)
