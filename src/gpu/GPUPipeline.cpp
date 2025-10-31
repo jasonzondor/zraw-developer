@@ -212,6 +212,81 @@ vec3 applyWhiteBalance(vec3 color, float temp, float tint) {
 }
 
 // ============================================================================
+// PARAMETRIC TONE CURVE FUNCTIONS
+// ============================================================================
+
+// Parametric tone curve for highlights/shadows
+// Uses a smooth S-curve that adjusts based on the control value
+// x: input luminance (0-1)
+// control: adjustment amount (-1 to +1)
+// center: where the curve pivots (0-1)
+// width: how wide the affected range is
+float parametricCurve(float x, float control, float center, float width) {
+    if (abs(control) < 0.001) return x;
+    
+    // Normalized distance from center
+    float dist = (x - center) / width;
+    
+    // Smooth falloff using a modified sigmoid
+    // This creates a natural S-curve
+    float weight = 1.0 / (1.0 + exp(-dist * 6.0));
+    
+    // Apply the adjustment with smooth blending
+    float adjustment = control * weight;
+    
+    // Use a power function for natural-looking tone adjustment
+    // Invert the gamma so positive control brightens
+    float gamma = 1.0 / (1.0 + adjustment);
+    return pow(x, gamma);
+}
+
+// Parametric curve for whites/blacks (affects endpoints)
+// This adjusts where the curve clips to white/black
+float parametricEndpoint(float x, float control, bool isWhite) {
+    if (abs(control) < 0.001) return x;
+    
+    if (isWhite) {
+        // Whites: compress or expand the upper end
+        // Positive control = brighter whites (expand)
+        // Negative control = darker whites (compress)
+        float pivot = 0.18;  // 18% gray
+        float scale = 1.0 + control * 0.5;
+        return pivot + (x - pivot) * scale;
+    } else {
+        // Blacks: compress or expand the lower end
+        float pivot = 0.18;
+        float scale = 1.0 + control * 0.5;
+        return pivot + (x - pivot) * scale;
+    }
+}
+
+// Apply parametric curve to RGB while preserving color ratios
+vec3 applyParametricToRGB(vec3 color, float control, float center, float width) {
+    float lum = luminance(color);
+    if (lum < 0.00001) return color;
+    
+    // Apply curve to luminance
+    float newLum = parametricCurve(lum, control, center, width);
+    
+    // Scale RGB proportionally
+    vec3 newColor = color * (newLum / lum);
+    
+    // Per-channel soft clipping
+    const float threshold = 1.0;
+    const float shoulder = 0.2;
+    
+    for (int i = 0; i < 3; i++) {
+        if (newColor[i] > threshold) {
+            float excess = newColor[i] - threshold;
+            float compressed = threshold + shoulder * (excess / (excess + shoulder));
+            newColor[i] = compressed;
+        }
+    }
+    
+    return newColor;
+}
+
+// ============================================================================
 // ACES TONE MAPPING
 // ============================================================================
 
@@ -612,81 +687,35 @@ void main() {
         }
     }
     
-    // 3.5. Whites and Blacks adjustment (ratio-preserving with per-channel compression)
-    //      Whites: brightens/darkens the bright tones (above middle gray)
-    //      Blacks: brightens/darkens the dark tones (below middle gray)
-    if (abs(whites) > 0.1 || abs(blacks) > 0.1) {
-        float lum = luminance(color);
-        
-        // Smooth transition masks
-        // Whites affects upper half of tonal range
-        float whitesMask = smoothstep(0.18, 0.9, lum);  // 18% gray to near-white
-        // Blacks affects lower half of tonal range
-        float blacksMask = smoothstep(0.18, 0.01, lum);  // 18% gray to near-black
-        
-        // Calculate adjustment factors
-        float whitesFactor = 1.0 + (whites / 100.0) * whitesMask * 0.5;
-        float blacksFactor = 1.0 + (blacks / 100.0) * blacksMask * 0.5;
-        float combinedFactor = whitesFactor * blacksFactor;
-        
-        // Apply ratio-preserving adjustment with per-channel compression
-        if (abs(combinedFactor - 1.0) > 0.01) {
-            float newLum = lum * combinedFactor;
-            
-            // Scale color proportionally
-            vec3 newColor = color * (newLum / max(lum, 0.00001));
-            
-            // Per-channel soft clipping to prevent color shifts
-            const float threshold = 1.0;
-            const float shoulder = 0.2;
-            
-            for (int i = 0; i < 3; i++) {
-                if (newColor[i] > threshold) {
-                    float excess = newColor[i] - threshold;
-                    float compressed = threshold + shoulder * (excess / (excess + shoulder));
-                    newColor[i] = compressed;
-                }
-            }
-            
-            color = newColor;
-        }
+    // 3.5. Whites and Blacks adjustment (parametric curve)
+    //      Whites: adjusts the upper tonal range with smooth curve
+    //      Blacks: adjusts the lower tonal range with smooth curve
+    if (abs(whites) > 0.1) {
+        // Whites: parametric curve centered on bright tones
+        float control = whites / 100.0;
+        color = applyParametricToRGB(color, control, 0.75, 0.3);
     }
     
-    // 4. Highlights and Shadows Recovery (ratio-preserving with per-channel compression)
-    //    Similar to exposure, use luminance-based scaling with per-channel soft clipping
-    if (abs(highlights) > 0.1 || abs(shadows) > 0.1) {
-        float lum = luminance(color);
-        
-        // Gaussian-like falloff for smoother transitions
-        float highlightMask = exp(-pow((1.0 - lum) / 0.3, 2.0));
-        float shadowMask = exp(-pow(lum / 0.3, 2.0));
-        
-        // Calculate adjustment factors
-        float highlightFactor = 1.0 + (highlights / 100.0) * highlightMask * 0.8;
-        float shadowFactor = 1.0 + (shadows / 100.0) * shadowMask * 0.8;
-        float combinedFactor = highlightFactor * shadowFactor;
-        
-        // Apply ratio-preserving adjustment with per-channel compression
-        if (abs(combinedFactor - 1.0) > 0.01) {
-            float newLum = lum * combinedFactor;
-            
-            // Scale color proportionally
-            vec3 newColor = color * (newLum / max(lum, 0.00001));
-            
-            // Per-channel soft clipping to prevent color shifts
-            const float threshold = 1.0;
-            const float shoulder = 0.2;
-            
-            for (int i = 0; i < 3; i++) {
-                if (newColor[i] > threshold) {
-                    float excess = newColor[i] - threshold;
-                    float compressed = threshold + shoulder * (excess / (excess + shoulder));
-                    newColor[i] = compressed;
-                }
-            }
-            
-            color = newColor;
-        }
+    if (abs(blacks) > 0.1) {
+        // Blacks: parametric curve centered on dark tones
+        float control = blacks / 100.0;
+        color = applyParametricToRGB(color, control, 0.25, 0.3);
+    }
+    
+    // 4. Highlights and Shadows Recovery (parametric curve)
+    //      Highlights: targets very bright areas with narrow curve
+    //      Shadows: targets very dark areas with narrow curve
+    if (abs(highlights) > 0.1) {
+        // Highlights: narrow parametric curve centered on bright areas
+        float control = highlights / 100.0;
+        color = applyParametricToRGB(color, control, 0.9, 0.15);
+    }
+    
+    if (abs(shadows) > 0.1) {
+        // Shadows: very narrow parametric curve centered on dark areas
+        // Use tighter width to only affect true shadows
+        float control = shadows / 100.0;
+        color = applyParametricToRGB(color, control, 0.08, 0.1);
     }
     
     // 5. Global Contrast (in LOG space for perceptual uniformity)
