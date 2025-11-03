@@ -22,6 +22,7 @@ jobs:
           build-essential \
           qt6-base-dev \
           libraw-dev \
+          libtiff-dev \
           libgl1-mesa-dev \
           libglu1-mesa-dev
     

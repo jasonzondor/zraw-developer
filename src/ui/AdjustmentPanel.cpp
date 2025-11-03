@@ -203,6 +203,142 @@ void AdjustmentPanel::createUI() {
     auto* advancedSection = createSection("Advanced", advancedContent);
     mainLayout->addWidget(advancedSection);
     
+    // ========================================================================
+    // CROP SECTION
+    // ========================================================================
+    auto* cropContent = new QVBoxLayout();
+    cropContent->setSpacing(8);
+    cropContent->setContentsMargins(12, 8, 12, 8);
+    
+    // Crop enable button
+    m_cropButton = new QPushButton("Enable Crop");
+    m_cropButton->setCheckable(true);
+    m_cropButton->setStyleSheet(
+        "QPushButton {"
+        "  background-color: #2a2a2a;"
+        "  color: #e0e0e0;"
+        "  border: 1px solid #3a3a3a;"
+        "  border-radius: 4px;"
+        "  padding: 6px 12px;"
+        "  font-size: 12px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #3a3a3a;"
+        "}"
+        "QPushButton:checked {"
+        "  background-color: #4a9eff;"
+        "  border-color: #4a9eff;"
+        "}"
+    );
+    connect(m_cropButton, &QPushButton::toggled, this, &AdjustmentPanel::cropModeChanged);
+    cropContent->addWidget(m_cropButton);
+    
+    // Aspect ratio selector
+    auto* aspectRow = new QWidget();
+    auto* aspectLayout = new QHBoxLayout(aspectRow);
+    aspectLayout->setContentsMargins(0, 0, 0, 0);
+    
+    auto* aspectLabel = new QLabel("Aspect:");
+    aspectLabel->setStyleSheet("QLabel { color: #b0b0b0; font-size: 12px; }");
+    aspectLayout->addWidget(aspectLabel);
+    
+    m_aspectRatioCombo = new QComboBox();
+    m_aspectRatioCombo->addItem("Free", 0.0f);
+    m_aspectRatioCombo->addItem("Original", -1.0f);  // Special value for image aspect
+    m_aspectRatioCombo->addItem("16:9", 16.0f/9.0f);
+    m_aspectRatioCombo->addItem("4:3", 4.0f/3.0f);
+    m_aspectRatioCombo->addItem("3:2", 3.0f/2.0f);
+    m_aspectRatioCombo->addItem("1:1", 1.0f);
+    m_aspectRatioCombo->setCurrentIndex(1);  // Default to "Original"
+    connect(m_aspectRatioCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), 
+            this, [this](int index) {
+        float ratio = m_aspectRatioCombo->itemData(index).toFloat();
+        emit aspectRatioChanged(ratio);
+    });
+    m_aspectRatioCombo->setStyleSheet(
+        "QComboBox {"
+        "  background-color: #2a2a2a;"
+        "  color: #e0e0e0;"
+        "  border: 1px solid #3a3a3a;"
+        "  border-radius: 4px;"
+        "  padding: 4px 8px;"
+        "  font-size: 12px;"
+        "}"
+        "QComboBox::drop-down {"
+        "  border: none;"
+        "}"
+        "QComboBox::down-arrow {"
+        "  image: none;"
+        "  border-left: 4px solid transparent;"
+        "  border-right: 4px solid transparent;"
+        "  border-top: 6px solid #e0e0e0;"
+        "  margin-right: 6px;"
+        "}"
+    );
+    aspectLayout->addWidget(m_aspectRatioCombo);
+    cropContent->addWidget(aspectRow);
+    
+    // Orientation selector
+    auto* orientRow = new QWidget();
+    auto* orientLayout = new QHBoxLayout(orientRow);
+    orientLayout->setContentsMargins(0, 0, 0, 0);
+    
+    auto* orientLabel = new QLabel("Orient:");
+    orientLabel->setStyleSheet("QLabel { color: #b0b0b0; font-size: 12px; }");
+    orientLayout->addWidget(orientLabel);
+    
+    auto* orientCombo = new QComboBox();
+    orientCombo->addItem("Landscape", false);  // false = not swapped
+    orientCombo->addItem("Portrait", true);    // true = swapped
+    orientCombo->setStyleSheet(
+        "QComboBox {"
+        "  background-color: #2a2a2a;"
+        "  color: #e0e0e0;"
+        "  border: 1px solid #3a3a3a;"
+        "  border-radius: 4px;"
+        "  padding: 4px 8px;"
+        "  font-size: 12px;"
+        "}"
+        "QComboBox::drop-down {"
+        "  border: none;"
+        "}"
+        "QComboBox::down-arrow {"
+        "  image: none;"
+        "  border-left: 4px solid transparent;"
+        "  border-right: 4px solid transparent;"
+        "  border-top: 6px solid #e0e0e0;"
+        "  margin-right: 6px;"
+        "}"
+    );
+    connect(orientCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, orientCombo](int index) {
+        bool isPortrait = orientCombo->itemData(index).toBool();
+        emit swapOrientationChanged(isPortrait);
+    });
+    orientLayout->addWidget(orientCombo);
+    cropContent->addWidget(orientRow);
+    
+    // Reset crop button
+    m_cropResetButton = new QPushButton("Reset Crop");
+    m_cropResetButton->setStyleSheet(
+        "QPushButton {"
+        "  background-color: #2a2a2a;"
+        "  color: #e0e0e0;"
+        "  border: 1px solid #3a3a3a;"
+        "  border-radius: 4px;"
+        "  padding: 6px 12px;"
+        "  font-size: 12px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #3a3a3a;"
+        "}"
+    );
+    connect(m_cropResetButton, &QPushButton::clicked, this, &AdjustmentPanel::cropReset);
+    cropContent->addWidget(m_cropResetButton);
+    
+    auto* cropSection = createSection("Crop", cropContent);
+    mainLayout->addWidget(cropSection);
+    
     mainLayout->addStretch();
     
     // Initialize labels

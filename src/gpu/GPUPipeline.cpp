@@ -38,6 +38,10 @@ uniform float midtoneContrast;
 uniform float shadowContrast;
 uniform float whites;
 uniform float blacks;
+uniform float cropLeft;
+uniform float cropTop;
+uniform float cropRight;
+uniform float cropBottom;
 uniform vec2 texelSize;
 
 // Output mode: 0=SDR (default), 1=HDR PQ, 2=HDR HLG, 3=Full ACES
@@ -647,6 +651,12 @@ void main() {
     // PROPER COLOR SCIENCE PIPELINE ORDER
     // ========================================================================
     
+    // 0. Apply crop - discard pixels outside crop region
+    if (TexCoord.x < cropLeft || TexCoord.x > cropRight ||
+        TexCoord.y < cropTop || TexCoord.y > cropBottom) {
+        discard;  // Don't render pixels outside crop
+    }
+    
     // 1. Sample input (linear RGB from RAW processing)
     vec3 color = texture(inputTexture, TexCoord).rgb;
     
@@ -879,6 +889,7 @@ GPUPipeline::GPUPipeline()
       m_vibrance(0.0f), m_saturation(0.0f),
       m_highlightContrast(0.0f), m_midtoneContrast(0.0f), m_shadowContrast(0.0f),
       m_whites(0.0f), m_blacks(0.0f),
+      m_cropLeft(0.0f), m_cropTop(0.0f), m_cropRight(1.0f), m_cropBottom(1.0f),  // No crop by default
       m_outputMode(0),  // Default to SDR
       m_bypassAdjustments(false),
       m_vao(0), m_vbo(0) {
@@ -1077,6 +1088,36 @@ void GPUPipeline::setBypassAdjustments(bool bypass) {
     m_bypassAdjustments = bypass;
 }
 
+void GPUPipeline::setCrop(float left, float top, float right, float bottom) {
+    m_cropLeft = std::max(0.0f, std::min(1.0f, left));
+    m_cropTop = std::max(0.0f, std::min(1.0f, top));
+    m_cropRight = std::max(0.0f, std::min(1.0f, right));
+    m_cropBottom = std::max(0.0f, std::min(1.0f, bottom));
+    
+    // Ensure right > left and bottom > top
+    if (m_cropRight <= m_cropLeft) m_cropRight = m_cropLeft + 0.01f;
+    if (m_cropBottom <= m_cropTop) m_cropBottom = m_cropTop + 0.01f;
+}
+
+void GPUPipeline::getCrop(float& left, float& top, float& right, float& bottom) const {
+    left = m_cropLeft;
+    top = m_cropTop;
+    right = m_cropRight;
+    bottom = m_cropBottom;
+}
+
+void GPUPipeline::resetCrop() {
+    m_cropLeft = 0.0f;
+    m_cropTop = 0.0f;
+    m_cropRight = 1.0f;
+    m_cropBottom = 1.0f;
+}
+
+bool GPUPipeline::isCropped() const {
+    return m_cropLeft > 0.001f || m_cropTop > 0.001f || 
+           m_cropRight < 0.999f || m_cropBottom < 0.999f;
+}
+
 bool GPUPipeline::process() {
     if (!m_inputTexture || !m_fbo) {
         std::cerr << "Pipeline not ready for processing" << std::endl;
@@ -1112,6 +1153,10 @@ bool GPUPipeline::process() {
     m_shader->setUniform("shadowContrast", m_bypassAdjustments ? 0.0f : m_shadowContrast);
     m_shader->setUniform("whites", m_bypassAdjustments ? 0.0f : m_whites);
     m_shader->setUniform("blacks", m_bypassAdjustments ? 0.0f : m_blacks);
+    m_shader->setUniform("cropLeft", m_cropLeft);
+    m_shader->setUniform("cropTop", m_cropTop);
+    m_shader->setUniform("cropRight", m_cropRight);
+    m_shader->setUniform("cropBottom", m_cropBottom);
     m_shader->setUniform("texelSize", 1.0f / m_width, 1.0f / m_height);
     m_shader->setUniform("outputMode", m_outputMode);
     

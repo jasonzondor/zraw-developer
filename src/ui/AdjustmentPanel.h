@@ -6,6 +6,8 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QFrame>
+#include <QComboBox>
+#include <QCheckBox>
 #include "ResettableSlider.h"
 
 namespace zraw {
@@ -71,6 +73,10 @@ signals:
     void shadowContrastChanged(float value);
     void whitesChanged(float value);
     void blacksChanged(float value);
+    void cropModeChanged(bool enabled);
+    void cropReset();
+    void aspectRatioChanged(float ratio);
+    void swapOrientationChanged(bool swapped);
 
 private:
     QSlider* m_exposureSlider;
@@ -105,6 +111,11 @@ private:
     
     float m_cameraWBKelvin;  // Base Kelvin temperature from camera
     float m_cameraWBTint;    // Base tint value from camera
+    
+    // Crop controls
+    QPushButton* m_cropButton;
+    QPushButton* m_cropResetButton;
+    QComboBox* m_aspectRatioCombo;
     
     void createUI();
     QWidget* createSection(const QString& title, QVBoxLayout* contentLayout);

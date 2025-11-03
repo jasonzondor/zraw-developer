@@ -44,6 +44,9 @@ private slots:
     void onShadowContrastChanged(float value);
     void onWhitesChanged(float value);
     void onBlacksChanged(float value);
+    void onCropModeChanged(bool enabled);
+    void onCropChanged(float left, float top, float right, float bottom);
+    void onCropReset();
 
 private:
     ImageViewer* m_viewer;

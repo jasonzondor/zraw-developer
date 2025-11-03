@@ -94,6 +94,18 @@ void MainWindow::createUI() {
             this, &MainWindow::onWhitesChanged);
     connect(m_adjustmentPanel, &AdjustmentPanel::blacksChanged,
             this, &MainWindow::onBlacksChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::cropModeChanged,
+            this, &MainWindow::onCropModeChanged);
+    connect(m_adjustmentPanel, &AdjustmentPanel::cropReset,
+            this, &MainWindow::onCropReset);
+    connect(m_adjustmentPanel, &AdjustmentPanel::aspectRatioChanged,
+            m_viewer->cropOverlay(), &CropOverlay::setAspectRatio);
+    connect(m_adjustmentPanel, &AdjustmentPanel::swapOrientationChanged,
+            m_viewer->cropOverlay(), &CropOverlay::setSwapOrientation);
+    
+    // Connect crop overlay to GPU pipeline
+    connect(m_viewer->cropOverlay(), &CropOverlay::cropChanged,
+            this, &MainWindow::onCropChanged);
 }
 
 void MainWindow::createMenus() {
@@ -192,6 +204,10 @@ bool MainWindow::processRawFile(const QString& filepath) {
     
     // Set pipeline in viewer
     m_viewer->setGPUPipeline(m_gpuPipeline);
+    
+    // Set image aspect ratio for crop overlay
+    float imageAspect = static_cast<float>(m_gpuPipeline->width()) / m_gpuPipeline->height();
+    m_viewer->cropOverlay()->setImageAspectRatio(imageAspect);
     
     m_viewer->doneCurrent();
     
@@ -408,6 +424,33 @@ void MainWindow::onWhitesChanged(float value) {
 void MainWindow::onBlacksChanged(float value) {
     if (m_gpuPipeline) {
         m_gpuPipeline->setBlacks(value);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onCropModeChanged(bool enabled) {
+    m_viewer->setCropMode(enabled);
+}
+
+void MainWindow::onCropChanged(float left, float top, float right, float bottom) {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->setCrop(left, top, right, bottom);
+        updateImage();
+        
+        if (!m_loadingXMP) {
+            scheduleXMPSave();
+        }
+    }
+}
+
+void MainWindow::onCropReset() {
+    if (m_gpuPipeline) {
+        m_gpuPipeline->resetCrop();
+        m_viewer->cropOverlay()->resetCrop();
         updateImage();
         
         if (!m_loadingXMP) {

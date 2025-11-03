@@ -19,8 +19,11 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED libraw)
 include_directories(${LIBRAW_INCLUDE_DIRS})
 
-# Find libtiff
-pkg_check_modules(LIBTIFF REQUIRED libtiff-4)
+# Find libtiff (try different package names)
+pkg_check_modules(LIBTIFF libtiff-4)
+if(NOT LIBTIFF_FOUND)
+    pkg_check_modules(LIBTIFF REQUIRED libtiff)
+endif()
 include_directories(${LIBTIFF_INCLUDE_DIRS})
 
 # Include directories
@@ -48,6 +51,7 @@ set(SOURCES
     src/ui/ImageViewer.cpp
     src/ui/AdjustmentPanel.cpp
     src/ui/ResettableSlider.cpp
+    src/ui/CropOverlay.cpp
 )
 
 set(HEADERS
@@ -66,6 +70,7 @@ set(HEADERS
     src/ui/ImageViewer.h
     src/ui/AdjustmentPanel.h
     src/ui/ResettableSlider.h
+    src/ui/CropOverlay.h
 )
 
 # Create executable
