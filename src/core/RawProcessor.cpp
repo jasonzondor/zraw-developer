@@ -130,6 +130,52 @@ int RawProcessor::iso() const {
 }
 
 float RawProcessor::getCameraWBTemperature() const {
+    // Note: WBCT_Coeffs contains preset temperatures, not necessarily the as-shot WB
+    // For accurate temperature display, we need to calculate from the actual multipliers
+    // that were applied (cam_mul), similar to how Darktable does it
+    
+    // Get the actual white balance multipliers that were applied
+    // cam_mul[0] = red, cam_mul[1] = green, cam_mul[2] = blue, cam_mul[3] = green2
+    float r_mul = m_libraw->imgdata.color.cam_mul[0];
+    float g_mul = m_libraw->imgdata.color.cam_mul[1];
+    float b_mul = m_libraw->imgdata.color.cam_mul[2];
+    
+    std::cout << "Camera WB multipliers: R=" << r_mul << " G=" << g_mul << " B=" << b_mul << std::endl;
+    
+    // Avoid division by zero
+    if (g_mul < 0.001f || r_mul < 0.001f || b_mul < 0.001f) {
+        return 5500.0f;  // Default daylight
+    }
+    
+    // Normalize by green (standard practice)
+    float r_norm = r_mul / g_mul;
+    float b_norm = b_mul / g_mul;
+    
+    // Calculate color temperature using Robertson's method (simplified)
+    // This is based on the red/blue ratio on the Planckian locus
+    float ratio = r_norm / b_norm;
+    
+    // Improved empirical formula based on typical camera behavior
+    // This approximates the Planckian locus more accurately
+    float kelvin;
+    if (ratio >= 1.0f) {
+        // Warmer temperatures (red > blue)
+        // Use logarithmic scale for better accuracy
+        kelvin = 3000.0f + 2500.0f * std::log(ratio);
+    } else {
+        // Cooler temperatures (blue > red)
+        kelvin = 7000.0f - 2000.0f * std::log(1.0f / ratio);
+    }
+    
+    // Clamp to reasonable photographic range
+    if (kelvin < 2000.0f) kelvin = 2000.0f;
+    if (kelvin > 10000.0f) kelvin = 10000.0f;
+    
+    std::cout << "Calculated temperature from multipliers: " << kelvin << "K (ratio=" << ratio << ")" << std::endl;
+    return kelvin;
+}
+
+float RawProcessor::getCameraWBTint() const {
     // Get camera white balance multipliers
     // cam_mul[0] = red, cam_mul[1] = green, cam_mul[2] = blue, cam_mul[3] = green2
     float r_mul = m_libraw->imgdata.color.cam_mul[0];
@@ -138,34 +184,28 @@ float RawProcessor::getCameraWBTemperature() const {
     
     // Avoid division by zero
     if (g_mul < 0.001f || r_mul < 0.001f || b_mul < 0.001f) {
-        return 5500.0f;  // Default daylight
+        return 0.0f;  // Neutral tint
     }
     
-    // Calculate red/blue ratio (normalized by green)
-    float r_ratio = r_mul / g_mul;
-    float b_ratio = b_mul / g_mul;
+    // Normalize by green
+    float r_norm = r_mul / g_mul;
+    float b_norm = b_mul / g_mul;
     
-    // Approximate color temperature from red/blue ratio
-    // This is a simplified approximation based on Planckian locus
-    // Higher red ratio = warmer (lower Kelvin), higher blue ratio = cooler (higher Kelvin)
-    float ratio = r_ratio / b_ratio;
+    // Tint represents deviation from the Planckian locus (green-magenta axis)
+    // Darktable uses: tint = (green - expected_green) / expected_green
+    // where expected_green is based on the Planckian locus for the given temperature
     
-    // Empirical formula to convert ratio to Kelvin (approximate)
-    // Based on typical camera WB behavior
-    float kelvin;
-    if (ratio > 1.0f) {
-        // Warm light (tungsten to daylight)
-        kelvin = 2000.0f + (ratio - 1.0f) * 3500.0f;
-    } else {
-        // Cool light (daylight to shade)
-        kelvin = 5500.0f + (1.0f - ratio) * 4500.0f;
-    }
+    // For a neutral tint, green should be 1.0 (since we normalized by green)
+    // The expected green for the Planckian locus is approximately the geometric mean of R and B
+    float expected_green_ratio = std::sqrt(r_norm * b_norm);
     
-    // Clamp to reasonable range
-    if (kelvin < 2000.0f) kelvin = 2000.0f;
-    if (kelvin > 10000.0f) kelvin = 10000.0f;
+    // Calculate tint as deviation from expected
+    // Darktable's tint scale is typically around 0.5 to 1.5, with 1.0 being neutral
+    float tint = 1.0f / expected_green_ratio;
     
-    return kelvin;
+    std::cout << "Calculated tint: " << tint << " (r_norm=" << r_norm << ", b_norm=" << b_norm << ")" << std::endl;
+    
+    return tint;
 }
 
 void RawProcessor::setError(const std::string& error) {

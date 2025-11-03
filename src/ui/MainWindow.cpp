@@ -196,11 +196,17 @@ bool MainWindow::processRawFile(const QString& filepath) {
     m_viewer->doneCurrent();
     
     // Camera WB is already applied during RAW processing
-    // Temperature slider is for relative adjustment from camera WB
+    // Set the camera WB values in the adjustment panel
     float cameraWBKelvin = m_rawProcessor->getCameraWBTemperature();
-    std::cout << "Camera WB temperature: " << cameraWBKelvin << "K (applied during RAW processing)" << std::endl;
-    m_adjustmentPanel->setTemperature(0.0f);  // 0 = use camera WB as-is
+    float cameraWBTint = m_rawProcessor->getCameraWBTint();
+    std::cout << "Camera WB - Temperature: " << cameraWBKelvin << "K, Tint: " << cameraWBTint 
+              << " (applied during RAW processing)" << std::endl;
+    m_adjustmentPanel->setCameraWBKelvin(cameraWBKelvin);
+    m_adjustmentPanel->setCameraWBTint(cameraWBTint);
+    m_adjustmentPanel->setTemperature(0.0f);  // 0 = use camera WB as-is (relative adjustment)
+    m_adjustmentPanel->setTint(0.0f);         // 0 = use camera tint as-is
     m_gpuPipeline->setTemperature(0.0f);
+    m_gpuPipeline->setTint(0.0f);
     
     std::cout << "Loading XMP adjustments..." << std::endl;
     // Load XMP adjustments if they exist (this will override camera WB if saved)
@@ -494,8 +500,8 @@ void MainWindow::saveXMPAdjustments() {
     adjustments.exposure = m_adjustmentPanel->exposure();
     adjustments.contrast = m_adjustmentPanel->contrast();
     adjustments.sharpness = m_adjustmentPanel->sharpness();
-    adjustments.temperature = 0;  // Temperature slider removed
-    adjustments.tint = 0;  // Tint slider removed
+    adjustments.temperature = m_adjustmentPanel->temperature();  // Relative adjustment from camera WB
+    adjustments.tint = m_adjustmentPanel->tint();
     adjustments.highlights = m_adjustmentPanel->highlights();
     adjustments.shadows = m_adjustmentPanel->shadows();
     adjustments.vibrance = m_adjustmentPanel->vibrance();

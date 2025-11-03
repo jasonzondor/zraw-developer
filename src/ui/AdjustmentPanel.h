@@ -51,6 +51,10 @@ public:
     void setShadowContrast(float value);
     void setWhites(float value);
     void setBlacks(float value);
+    
+    // Set the base white balance values from camera
+    void setCameraWBKelvin(float kelvin);
+    void setCameraWBTint(float tint);
 
 signals:
     void exposureChanged(float value);
@@ -98,6 +102,9 @@ private:
     QLabel* m_shadowContrastLabel;
     QLabel* m_whitesLabel;
     QLabel* m_blacksLabel;
+    
+    float m_cameraWBKelvin;  // Base Kelvin temperature from camera
+    float m_cameraWBTint;    // Base tint value from camera
     
     void createUI();
     QWidget* createSection(const QString& title, QVBoxLayout* contentLayout);
