@@ -1,221 +1,136 @@
 # ZRaw Developer
 
-A RAW photo processor with **color science** and GPU acceleration.
+A free, open-source RAW photo editor with simplicity in mind. The philosophy is: do one thing, and do it well.
 
-Built for photographers who appreciate **accurate color**, **professional workflows**, and **real-time performance**.
+## ✨ Why ZRaw Developer?
 
-## ✨ Highlights
+- 🎨 **Color Science** - Uses ACES color science
+- 🚀 **Fast & Responsive** - Real-time editing using GPU acceleration
+- 📸 **Your Camera, Supported** - Works with Canon, Nikon, Sony, Fujifilm, Olympus, Panasonic, and more
+- 💾 **Non-Destructive** - Your original photos are never modified
+- 💰 **Completely Free** - No subscriptions, no watermarks, no limitations
+- 🐧 **Linux Native** - Built specifically for Linux photographers
+- ⚡ **Professional Features** - HDR support, tone controls, and more
 
-- 🎨 **ACES Color Science** - Hollywood-standard color pipeline
-- 🚀 **GPU-Accelerated** - Real-time editing with OpenGL compute shaders
-- 🎬 **HDR Output** - PQ (HDR10) and HLG (broadcast) encoding support
-- 🔬 **Perceptually Accurate** - LCH color space, Bradford adaptation, log-space contrast
-- 📸 **Wide Format Support** - CR2, NEF, ARW, DNG, RAF (X-Trans), ORF, RW2, and more
-- 💾 **Non-Destructive** - XMP sidecar files for all adjustments
-- ⚡ **High Performance** - 16-bit processing pipeline, multi-threaded RAW loading
+## 🎨 What Makes the Colors Special?
 
-## 🎨 Professional Color Science
+ZRaw Developer uses **ACES** (Academy Color Encoding System). This means:
 
-ZRaw Developer implements **industry-standard color science** matching professional workflows:
+- **Natural-looking highlights** - Bright areas roll off smoothly instead of clipping to white
+- **Accurate colors** - Skin tones, skies, and foliage look true to life
+- **No weird color shifts** - Adjusting brightness won't make colors look wrong
+- **Film-like rendering** - Your photos have that "cinematic" quality
 
-### Color Pipeline
-```
-RAW Demosaic → White Balance (Bradford) → Exposure (Linear) 
-→ Tone Recovery (Gaussian) → Contrast (Log Space) 
-→ Local Contrast (Zone-based) → Color (LCH Space) 
-→ ACES Tone Mapping → Gamut Mapping → Sharpening (Edge-aware) 
-→ Output Transform (SDR/HDR)
-```
+### What You Can Adjust
 
-### Key Features
+**Exposure & Tone**
+- Brighten or darken your entire photo
+- Recover blown-out highlights (like bright skies)
+- Lift details from dark shadows
+- Adjust whites and blacks for fine control
 
-**White Balance**
-- Bradford chromatic adaptation (industry standard)
-- Accurate color temperature and tint control
-- No color shifts or artifacts
+**Contrast**
+- Overall contrast for punch
+- Separate control for highlights, midtones, and shadows
+- Works in perceptual space (what your eye sees)
 
-**Tone Mapping**
-- ACES RRT (Reference Rendering Transform)
-- Smooth highlight rolloff (no clipping)
-- Film-like rendering
+**Color**
+- **Vibrance** - Boost muted colors without oversaturating (great for landscapes)
+- **Saturation** - Overall color intensity control
 
-**Color Adjustments**
-- LCH color space (perceptually uniform, no hue shifts)
-- Vibrance (smart saturation for muted colors)
-- Saturation (linear chroma adjustment)
+**Sharpness**
+- Edge-aware sharpening that won't create halos
+- Only sharpens details, not noise
 
-**Sharpening**
-- Edge-aware deconvolution (halo-free)
-- Variance-based detail detection
-- Luminance-only (preserves color)
+**HDR Support** (if you have an HDR monitor)
+- Export photos that take advantage of HDR displays
+- Perfect for viewing on modern TVs and monitors
 
-**HDR Output**
-- PQ (Perceptual Quantizer) for HDR10/Dolby Vision
-- HLG (Hybrid Log-Gamma) for broadcast
-- Full ACES workflow (AP0 → RRT → ODT)
+## 🛠️ Built With
 
-## 📋 Adjustment Controls
+- **C++** - For maximum speed and performance
+- **LibRaw** - Industry-standard library for reading RAW files
+- **OpenGL** - Uses your graphics card for real-time editing
+- **Qt6** - Modern, responsive user interface
 
-### White Balance
-- **Temperature** - Warm/cool color balance (-100 to +100)
-- **Tint** - Green/magenta balance (-100 to +100)
+## 📦 Build from source
 
-### Tone
-- **Exposure** - Overall brightness (-3 to +3 stops)
-- **Highlights** - Recover blown highlights (-100 to +100)
-- **Shadows** - Lift shadow detail (-100 to +100)
+### Step 1: Install Dependencies
 
-### Contrast
-- **Contrast** - Global midpoint contrast (-1 to +1)
-- **Highlight Contrast** - Contrast in bright areas (-100 to +100)
-- **Midtone Contrast** - Contrast in mid-tones (-100 to +100)
-- **Shadow Contrast** - Contrast in dark areas (-100 to +100)
-
-### Color
-- **Vibrance** - Smart saturation boost (-100 to +100)
-- **Saturation** - Linear saturation (-100 to +100)
-
-### Detail
-- **Sharpness** - Edge enhancement (0 to 2.0)
-
-## Architecture
-
-- **C++17** - Maximum performance
-- **LibRaw** - Industry-standard RAW processing
-- **OpenGL 3.3+** - GPU compute via GLSL shaders
-- **Qt6** - Cross-platform GUI framework
-
-## Dependencies
-
-### Ubuntu/Debian
+**Ubuntu/Debian:**
 ```bash
-sudo apt install build-essential cmake
-sudo apt install qt6-base-dev qt6-opengl-dev libgl1-mesa-dev
-sudo apt install libraw-dev
-sudo apt install pkg-config
+sudo apt install build-essential cmake qt6-base-dev qt6-opengl-dev libgl1-mesa-dev libraw-dev pkg-config
 ```
 
-### Fedora
+**Fedora:**
 ```bash
-sudo dnf install gcc-c++ cmake
-sudo dnf install qt6-qtbase-devel mesa-libGL-devel
-sudo dnf install LibRaw-devel
-sudo dnf install pkgconfig
+sudo dnf install gcc-c++ cmake qt6-qtbase-devel mesa-libGL-devel LibRaw-devel pkgconfig
 ```
 
-### Arch Linux
+**Arch Linux:**
 ```bash
-sudo pacman -S base-devel cmake
-sudo pacman -S qt6-base mesa
-sudo pacman -S libraw
-sudo pacman -S pkgconf
+sudo pacman -S base-devel cmake qt6-base mesa libraw pkgconf
 ```
 
-## Building
+### Step 2: Build from Source
 
 ```bash
-# Create build directory
+# Clone the repository
+git clone https://github.com/jasonzondor/zraw-developer.git
+cd zraw-developer
+
+# Build it
 mkdir build && cd build
-
-# Configure
 cmake ..
-
-# Build
 make -j$(nproc)
 
-# Install (optional)
+# Optionally install system-wide
 sudo make install
 ```
 
-## Usage
+## 🚀 Getting Started
 
-### GUI Mode
+**Open the application:**
 ```bash
-# Open application
 ./zraw-developer
-
-# Open with file
-./zraw-developer /path/to/image.cr2
 ```
 
-### Command-Line Mode (for photo managers)
+**Or open a specific photo:**
 ```bash
-# Process image with adjustments
-./zraw-developer --input image.cr2 --output output.tiff \
-  --exposure 0.5 --contrast 0.2 --sharpness 1.0
+./zraw-developer /path/to/your/photo.cr2
 ```
 
-## Performance
+**Tips:**
+- Double-click any slider to reset it to default
+- Your adjustments are automatically saved to an XMP file next to your photo
+- The original RAW file is never modified—you can always start over!
 
-- Real-time preview updates on GPU
-- Optimized for multi-core CPUs (`-march=native`)
-- Efficient 16-bit processing pipeline
-- Minimal memory allocations during editing
+## 🗺️ What's Coming Next?
 
-## 🗺️ Roadmap
+### ✅ What's Already Working
+- [x] Load and edit RAW files from all major camera brands
+- [x] Real-time adjustments with instant preview
+- [x] Hollywood-grade color science (ACES)
+- [x] HDR support for modern displays
+- [x] Non-destructive editing with XMP sidecars
+- [x] Advanced tone and color controls
 
-### ✅ Phase 1: Fundamentals (Complete)
-- [x] RAW loading with LibRaw (all major formats)
-- [x] GPU-accelerated processing pipeline
-- [x] Basic adjustments (Exposure, Contrast, Sharpness)
-- [x] Qt6 GUI with real-time preview
-- [x] XMP sidecar support
+### 🚧 Currently Working On
+- [x] **Export photos** - Save as TIFF, JPEG, or PNG
+- [ ] **Presets** - Save your favorite adjustments and apply them to other photos
+- [x] **Before/After view** - Compare your edits side-by-side
 
-### ✅ Phase 2: Professional Color Science (Complete)
-- [x] Bradford chromatic adaptation for white balance
-- [x] ACES tone mapping (RRT)
-- [x] LCH color space for saturation (no hue shifts)
-- [x] Log-space contrast adjustments
-- [x] Gaussian highlight/shadow recovery
-- [x] Zone-based local contrast
-- [x] Adaptive gamut mapping
+### 📅 Planned Features
+- [ ] **Tone curves** - Fine-tune your tonal adjustments with curves
+- [ ] **HSL controls** - Adjust specific colors (like making skies more blue)
+- [ ] **Local adjustments** - Edit just part of your photo with brushes and gradients
+- [ ] **Lens corrections** - Automatically fix distortion and vignetting
+- [ ] **Noise reduction** - Clean up high-ISO photos
+- [ ] **Film looks** - Presets that mimic classic film stocks
 
-### ✅ Phase 3: Cinema-Grade Features (Complete)
-- [x] Full ACES workflow (AP0 → AP1 → RRT → ODT)
-- [x] HDR output support (PQ and HLG encoding)
-- [x] Edge-aware RAW sharpening (halo-free)
-- [x] Professional UI layout (workflow-optimized)
-- [x] Multiple output modes (SDR, HDR PQ, HDR HLG, Full ACES)
-
-### 🚧 Phase 4: Export & Workflow (In Progress)
-- [ ] Image export (TIFF 16-bit, JPEG, PNG)
-- [ ] ICC profile support for output
-- [ ] Batch processing
-- [ ] Preset system (save/load adjustment sets)
-- [ ] Before/After comparison view
-
-### 📅 Phase 5: Advanced Features (Planned)
-- [ ] Tone curve editor
-- [ ] HSL/Color grading tools
-- [ ] Local adjustments (gradients, brushes)
-- [ ] Lens corrections database
-- [ ] Noise reduction (luminance and chroma)
-- [ ] Chromatic aberration correction
-- [ ] OCIO (OpenColorIO) integration
-- [ ] 3D LUT support
-
-### 🎯 Phase 6: Professional Tools (Future)
-- [ ] CLI interface for automation
-- [ ] Plugin system
-- [ ] Custom color spaces
-- [ ] Film emulation presets
-- [ ] Tethered shooting support
-- [ ] macOS and Windows builds
-
-## Integration with Photo Managers
-
-ZRaw Developer is designed to be called by external photo management applications:
-
-```bash
-# Example integration
-photo-manager --edit-with=/usr/bin/zraw-developer photo.cr2
-```
-
-The application will:
-1. Load the RAW file
-2. Display editing interface
-3. Save processed image when requested
-4. Return control to photo manager
+### 🎯 Future Ideas
+- [ ] Support for Windows and macOS
+- [ ] Custom presets and LUTs
 
 ## 🆚 Comparison to Other RAW Processors
 
@@ -235,25 +150,20 @@ The application will:
 | Open Source | ✅ | ❌ | ❌ | ❌ |
 | **Price** | Free | $10/mo | $300 | $295 |
 
-**ZRaw Developer offers DaVinci Resolve-level color science in a free, open-source package!**
+## 🤝 Want to Help?
 
-## 🤝 Contributing
+ZRaw Developer is built by hobby photographers, for hobby photographers. Contributions are welcome!
 
-Contributions are welcome! We follow a professional development workflow:
+**You can help in many ways:**
 
-- **Branch Protection** - All changes via Pull Requests
-- **CI/CD** - Automated testing on every PR
-- **Code Review** - Maintainer approval required
-- **Conventional Commits** - Semantic versioning
+- 🐛 **Report bugs** - Found something broken? Let us know!
+- 💡 **Suggest features** - What would make your workflow better?
+- 📝 **Improve docs** - Help make the documentation clearer
+- 🎨 **Share presets** - Create and share adjustment presets
+- 🧪 **Test features** - Try new features and give feedback
+- 💻 **Write code** - If you know C++, check out the issues!
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-### Areas for Contribution
-- Export functionality (TIFF, JPEG with ICC profiles)
-- Batch processing
-- Lens correction database
-- Noise reduction algorithms
-- UI/UX improvements
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on how to get started.
 
 ## 📄 License
 
@@ -291,4 +201,4 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with ❤️ for photographers who care about color science.**
+**Built with ❤️ by hobby photographers, for hobby photographers.**

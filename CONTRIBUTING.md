@@ -1,156 +1,203 @@
 # Contributing to ZRaw Developer
 
-Thank you for your interest in contributing to ZRaw Developer! This document provides guidelines for contributing to the project.
+Thank you for your interest in helping make ZRaw Developer better! 
 
-## Development Workflow
+This project is built by hobby photographers who wanted a free, professional-quality RAW editor for Linux. Whether you're a programmer or not, there are many ways you can contribute!
+
+## Ways to Contribute (No Coding Required!)
+
+### 🐛 Report Bugs
+Found something that doesn't work? [Open an issue](https://github.com/jasonzondor/zraw-developer/issues) and tell us:
+- What you were trying to do
+- What happened instead
+- What camera/RAW file you were using
+- Screenshots if possible
+
+### 💡 Suggest Features
+Have an idea for a new feature? We'd love to hear it! Open an issue and describe:
+- What feature you'd like to see
+- How it would help your photography workflow
+- Examples from other software (if applicable)
+
+### 📝 Improve Documentation
+Help make the docs clearer:
+- Fix typos or confusing explanations
+- Add examples or screenshots
+- Translate documentation
+- Write tutorials or guides
+
+### 🧪 Test New Features
+- Try out new features before they're released
+- Report what works and what doesn't
+- Share your experience with different cameras/RAW files
+
+### 🎨 Share Your Work
+- Create and share adjustment presets
+- Show before/after examples
+- Help other users in discussions
+
+## For Developers
 
 ### Branch Strategy
 
-We use a simplified Git Flow:
+We use a simple Git workflow:
 
-- **`main`** - Production-ready code, protected branch
-- **`develop`** - Integration branch for features
-- **`feature/*`** - Feature branches
+- **`main`** - Stable, released code
+- **`feature/*`** - Your new feature branches
 - **`bugfix/*`** - Bug fix branches
-- **`hotfix/*`** - Critical fixes for production
 
-### Getting Started
+### Getting Started with Code
+
+**New to open source?** Don't worry! Here's a simple guide:
 
 1. **Fork the repository**
+   - Click the "Fork" button on GitHub
+   - Clone your fork to your computer:
    ```bash
-   # Fork on GitHub, then clone your fork
    git clone https://github.com/YOUR_USERNAME/zraw-developer.git
    cd zraw-developer
    ```
 
-2. **Add upstream remote**
+2. **Connect to the main repository**
    ```bash
    git remote add upstream https://github.com/jasonzondor/zraw-developer.git
    ```
 
-3. **Create a feature branch**
+3. **Create a branch for your changes**
    ```bash
-   git checkout -b feature/your-feature-name develop
+   git checkout -b feature/describe-your-feature develop
    ```
+   
+   Examples: `feature/add-jpeg-export`, `bugfix/fix-slider-crash`
 
 ### Making Changes
 
-1. **Build and test locally**
+1. **Build and test your changes**
    ```bash
    mkdir build && cd build
    cmake ..
    make -j$(nproc)
-   ./zraw-developer ../path/to/test.raf
+   ./zraw-developer /path/to/your/test-photo.cr2
    ```
+   
+   Test with different RAW files from different cameras if possible!
 
-2. **Follow coding standards**
-   - Use C++17 features
-   - Follow existing code style (4 spaces, no tabs)
-   - Comment complex algorithms
-   - Keep functions focused and small
+2. **Keep it simple and clean**
+   - Match the existing code style (look at nearby code)
+   - Add comments to explain tricky parts
+   - Keep functions small and focused
+   - Test your changes thoroughly
 
-3. **Commit your changes**
+3. **Commit your changes with a clear message**
    ```bash
    git add .
-   git commit -m "feat: add new adjustment slider"
+   git commit -m "feat: add JPEG export functionality"
    ```
 
-   **Commit message format:**
-   - `feat:` - New feature
-   - `fix:` - Bug fix
-   - `docs:` - Documentation changes
-   - `style:` - Code style changes (formatting, etc.)
-   - `refactor:` - Code refactoring
-   - `perf:` - Performance improvements
-   - `test:` - Adding tests
-   - `chore:` - Maintenance tasks
+   **Commit message prefixes:**
+   - `feat:` - New feature (e.g., "feat: add batch processing")
+   - `fix:` - Bug fix (e.g., "fix: crash when opening RAF files")
+   - `docs:` - Documentation only
+   - `style:` - Code formatting (no functional changes)
+   - `refactor:` - Code cleanup
+   - `perf:` - Performance improvement
 
 ### Submitting a Pull Request
 
-1. **Update your branch**
+1. **Make sure your branch is up to date**
    ```bash
    git fetch upstream
    git rebase upstream/develop
    ```
 
-2. **Push to your fork**
+2. **Push your changes to GitHub**
    ```bash
    git push origin feature/your-feature-name
    ```
 
-3. **Create Pull Request**
-   - Go to GitHub and create a PR from your branch to `develop`
-   - Fill out the PR template
-   - Link any related issues
-   - Request review
+3. **Create a Pull Request**
+   - Go to GitHub and you'll see a "Compare & pull request" button
+   - Write a clear description of what you changed and why
+   - Link any related issues (e.g., "Fixes #123")
+   - Submit the PR!
 
-4. **Address feedback**
-   - Make requested changes
-   - Push updates to your branch
-   - PR will update automatically
+4. **Work with reviewers**
+   - A maintainer will review your code
+   - They might suggest changes—don't worry, this is normal!
+   - Make the requested changes and push them
+   - Your PR will update automatically
 
 ## Code Review Process
 
-- All PRs require at least one approval
-- CI must pass (build + tests)
-- No merge conflicts
-- Code follows project standards
+Don't be intimidated by code review! It's a normal part of open source development.
+
+- A maintainer will review your code (usually within a few days)
+- They'll check that it builds correctly and works as expected
+- They might suggest improvements—this helps everyone learn!
+- Once approved, your code will be merged
 
 ## Release Process
 
-Releases are created by maintainers:
+Maintainers handle releases, but here's how it works:
 
-1. Merge `develop` into `main`
-2. Tag the release: `git tag -a v1.0.0 -m "Release v1.0.0"`
-3. Push tag: `git push origin v1.0.0`
-4. GitHub Actions will create the release automatically
+1. Features are merged into `develop`
+2. When ready for release, `develop` is merged to `main`
+3. A version tag is created (e.g., v0.3.0)
+4. GitHub automatically builds and publishes the release
 
-## Areas for Contribution
+## What Needs Help?
 
-### High Priority
-- [ ] Export functionality (TIFF, JPEG, PNG with ICC profiles)
-- [ ] Batch processing support
-- [ ] Preset system
-- [ ] Lens correction database
-- [ ] Noise reduction algorithms
+### 🔥 High Priority (Most Needed)
+- [ ] **Export functionality** - Save as TIFF, JPEG, PNG with proper color profiles
+- [ ] **Batch processing** - Edit multiple photos at once
+- [ ] **Preset system** - Save and load adjustment presets
+- [ ] **Lens corrections** - Database of lens profiles for auto-correction
+- [ ] **Noise reduction** - Clean up high-ISO images
 
-### Medium Priority
-- [ ] Tone curve editor
-- [ ] Local adjustment tools (gradients, brushes)
-- [ ] Histogram display
-- [ ] Before/After comparison view
-- [ ] Keyboard shortcuts
+### 📊 Medium Priority
+- [ ] **Tone curve editor** - Fine-tune tones with curves
+- [ ] **Local adjustments** - Brushes and gradients for selective editing
+- [ ] **Histogram** - Visual representation of tones
+- [ ] **Before/After view** - Compare original and edited side-by-side
+- [ ] **Keyboard shortcuts** - Speed up workflow
 
-### Nice to Have
-- [ ] Plugin system
-- [ ] Custom LUT support
-- [ ] GPU compute shader optimization
-- [ ] Multi-threaded RAW loading
-- [ ] macOS and Windows builds
+### 💡 Nice to Have
+- [ ] **Plugin system** - Let users extend functionality
+- [ ] **Custom LUTs** - Import color grading LUTs
+- [ ] **Performance improvements** - Make it even faster!
+- [ ] **Windows and macOS support** - Reach more photographers
+- [ ] **Film emulation presets** - Classic film looks
 
-## Color Science Guidelines
+## Color Science Guidelines (For Advanced Contributors)
 
-When working on color processing:
+If you're working on the color processing pipeline:
 
-1. **Maintain pipeline order:**
-   - White Balance → Exposure → Tone Recovery → Contrast → Color → Sharpening → Output
+1. **Maintain the processing order:**
+   ```
+   White Balance → Exposure → Tone Recovery → Contrast 
+   → Color → Sharpening → Output Transform
+   ```
 
-2. **Use proper color spaces:**
-   - Linear RGB for physical operations
-   - Log space for contrast
-   - LCH for saturation (not HSV!)
-   - ACES for tone mapping
+2. **Use the right color space for each operation:**
+   - **Linear RGB** - For exposure and white balance (physical light)
+   - **Log space** - For contrast adjustments (perceptual)
+   - **LCH** - For saturation (avoids hue shifts)
+   - **ACES** - For tone mapping (film-like rendering)
 
-3. **Test with various images:**
-   - High dynamic range scenes
-   - Portraits (skin tones)
-   - Landscapes (sky, foliage)
-   - Low light / high ISO
+3. **Test thoroughly with different types of photos:**
+   - **High contrast scenes** - Sunsets, backlit subjects
+   - **Portraits** - Skin tones must look natural
+   - **Landscapes** - Skies and foliage are critical
+   - **Low light** - High ISO noise handling
+   - **Different cameras** - Canon, Nikon, Sony, Fujifilm, etc.
 
-## Questions?
+## Questions or Need Help?
 
-- Open an issue for discussion
-- Join our discussions on GitHub
-- Check existing issues and PRs
+- **Not sure where to start?** Open an issue and ask!
+- **Want to discuss an idea?** Use GitHub Discussions
+- **Found existing issues?** Comment on them to show interest
+- **Stuck on something?** Don't hesitate to ask for help
 
-Thank you for contributing! 🎨
+Remember: Everyone was a beginner once. We're here to help!
+
+Thank you for contributing! 🎨📸
