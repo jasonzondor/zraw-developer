@@ -2,11 +2,14 @@
 #include <QHBoxLayout>
 #include <QFrame>
 #include <QPushButton>
+#include <cmath>
 
 namespace zraw {
 
 AdjustmentPanel::AdjustmentPanel(QWidget* parent)
-    : QWidget(parent) {
+    : QWidget(parent),
+      m_cameraWBKelvin(5500.0f),  // Default to daylight
+      m_cameraWBTint(1.0f) {      // Default to neutral tint (Darktable scale: 1.0 = neutral)
     createUI();
 }
 
@@ -92,22 +95,35 @@ void AdjustmentPanel::createUI() {
     colorContent->setSpacing(8);
     colorContent->setContentsMargins(12, 8, 12, 8);
     
-    // Temperature (White Balance) - relative adjustment
+    // Temperature (White Balance) - Kelvin values (2000K to 10000K)
     auto* temperatureRow = createSliderRow("Temperature", &m_temperatureSlider, &m_temperatureLabel,
-                                           -100, 100, 0);  // -100 to +100, default 0 (neutral)
+                                           2000, 10000, 5500);  // 2000K to 10000K, default 5500K (daylight)
     colorContent->addWidget(temperatureRow);
     connect(m_temperatureSlider, &QSlider::valueChanged, this, [this](int value) {
         updateTemperatureLabel(value);
-        emit temperatureChanged(static_cast<float>(value));
+        // Emit relative adjustment from camera WB
+        // Convert Kelvin difference to shader range (-100 to +100)
+        // Map ±2000K to ±100 (20K per unit)
+        float kelvinDiff = static_cast<float>(value) - m_cameraWBKelvin;
+        float relativeAdjustment = kelvinDiff / 20.0f;
+        // Clamp to reasonable range
+        if (relativeAdjustment < -100.0f) relativeAdjustment = -100.0f;
+        if (relativeAdjustment > 100.0f) relativeAdjustment = 100.0f;
+        emit temperatureChanged(relativeAdjustment);
     });
     
-    // Tint (White Balance)
+    // Tint (White Balance) - Darktable scale: 0.5 to 1.5, with 1.0 = neutral
+    // Use integer slider 500-1500 (divide by 1000 for display)
     auto* tintRow = createSliderRow("Tint", &m_tintSlider, &m_tintLabel,
-                                    -100, 100, 0);
+                                    500, 1500, 1000);  // 0.5 to 1.5, default 1.0
     colorContent->addWidget(tintRow);
     connect(m_tintSlider, &QSlider::valueChanged, this, [this](int value) {
         updateTintLabel(value);
-        emit tintChanged(static_cast<float>(value));
+        // Convert to Darktable scale (0.5 to 1.5)
+        float tintValue = value / 1000.0f;
+        // Convert to shader scale: (tint - 1.0) * 100 maps to -50 to +50
+        float shaderTint = (tintValue - 1.0f) * 100.0f;
+        emit tintChanged(shaderTint);
     });
     
     // Vibrance
@@ -193,6 +209,8 @@ void AdjustmentPanel::createUI() {
     updateExposureLabel(0);
     updateContrastLabel(0);
     updateSharpnessLabel(0);
+    updateTemperatureLabel(5500);  // Default daylight
+    updateTintLabel(1000);  // Default neutral (1.0)
     updateHighlightsLabel(0);
     updateShadowsLabel(0);
     updateVibranceLabel(0);
@@ -333,18 +351,32 @@ void AdjustmentPanel::updateSharpnessLabel(int value) {
 }
 
 void AdjustmentPanel::updateTemperatureLabel(int value) {
-    // Show relative adjustment from camera WB
-    if (value == 0) {
-        m_temperatureLabel->setText("0 (As Shot)");
-    } else if (value > 0) {
-        m_temperatureLabel->setText("+" + QString::number(value) + " (Warmer)");
-    } else {
-        m_temperatureLabel->setText(QString::number(value) + " (Cooler)");
+    // Show Kelvin value with indicator if it matches camera WB
+    QString text = QString("%1K").arg(value);
+    
+    // Add indicator if this is close to camera WB (within 50K)
+    if (std::abs(static_cast<float>(value) - m_cameraWBKelvin) < 50.0f) {
+        text += "";
+    }
+    
+    if (m_temperatureLabel) {
+        m_temperatureLabel->setText(text);
     }
 }
 
 void AdjustmentPanel::updateTintLabel(int value) {
-    m_tintLabel->setText(QString::number(value));
+    // Convert from slider value (500-1500) to display value (0.5-1.5)
+    float tintValue = value / 1000.0f;
+    QString text = QString::number(tintValue, 'f', 3);  // 3 decimal places
+    
+    // Add indicator if this is close to camera tint (within 0.01)
+    if (std::abs(tintValue - m_cameraWBTint) < 0.01f) {
+        text += "";
+    }
+    
+    if (m_tintLabel) {
+        m_tintLabel->setText(text);
+    }
 }
 
 void AdjustmentPanel::updateHighlightsLabel(int value) {
@@ -397,11 +429,20 @@ float AdjustmentPanel::sharpness() const {
 }
 
 float AdjustmentPanel::temperature() const {
-    return static_cast<float>(m_temperatureSlider->value());
+    // Return relative adjustment from camera WB, scaled to shader range
+    float kelvinDiff = static_cast<float>(m_temperatureSlider->value()) - m_cameraWBKelvin;
+    float relativeAdjustment = kelvinDiff / 20.0f;
+    // Clamp to reasonable range
+    if (relativeAdjustment < -100.0f) relativeAdjustment = -100.0f;
+    if (relativeAdjustment > 100.0f) relativeAdjustment = 100.0f;
+    return relativeAdjustment;
 }
 
 float AdjustmentPanel::tint() const {
-    return static_cast<float>(m_tintSlider->value());
+    // Convert from slider value (500-1500) to Darktable scale (0.5-1.5)
+    float tintValue = m_tintSlider->value() / 1000.0f;
+    // Convert to shader scale: (tint - 1.0) * 100
+    return (tintValue - 1.0f) * 100.0f;
 }
 
 float AdjustmentPanel::highlights() const {
@@ -463,15 +504,46 @@ void AdjustmentPanel::setSharpness(float value) {
 }
 
 void AdjustmentPanel::setTemperature(float value) {
+    // Value is relative adjustment in shader range (-100 to +100)
+    // Convert back to Kelvin: value * 20K per unit
+    float kelvinDiff = value * 20.0f;
+    int kelvin = static_cast<int>(m_cameraWBKelvin + kelvinDiff);
     m_temperatureSlider->blockSignals(true);
-    m_temperatureSlider->setValue(static_cast<int>(value));
+    m_temperatureSlider->setValue(kelvin);
     updateTemperatureLabel(m_temperatureSlider->value());
     m_temperatureSlider->blockSignals(false);
 }
 
+void AdjustmentPanel::setCameraWBKelvin(float kelvin) {
+    m_cameraWBKelvin = kelvin;
+    
+    // Update the default value of the slider to the camera WB
+    if (auto* resettableSlider = dynamic_cast<ResettableSlider*>(m_temperatureSlider)) {
+        resettableSlider->setDefaultValue(static_cast<int>(kelvin));
+    }
+}
+
+void AdjustmentPanel::setCameraWBTint(float tint) {
+    m_cameraWBTint = tint;  // Store in Darktable scale (0.5-1.5)
+    
+    // Convert to slider value (500-1500)
+    int sliderValue = static_cast<int>(tint * 1000.0f);
+    
+    // Update the default value of the slider to the camera tint
+    if (auto* resettableSlider = dynamic_cast<ResettableSlider*>(m_tintSlider)) {
+        resettableSlider->setDefaultValue(sliderValue);
+    }
+}
+
 void AdjustmentPanel::setTint(float value) {
+    // Value is in shader scale (-50 to +50)
+    // Convert back to Darktable scale: value/100 + 1.0
+    float tintValue = (value / 100.0f) + 1.0f;
+    // Convert to slider value (500-1500)
+    int sliderValue = static_cast<int>(tintValue * 1000.0f);
+    
     m_tintSlider->blockSignals(true);
-    m_tintSlider->setValue(static_cast<int>(value));
+    m_tintSlider->setValue(sliderValue);
     updateTintLabel(m_tintSlider->value());
     m_tintSlider->blockSignals(false);
 }

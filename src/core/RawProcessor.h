@@ -37,6 +37,7 @@ public:
     
     // Get camera white balance (as-shot)
     float getCameraWBTemperature() const;  // Returns color temperature in Kelvin
+    float getCameraWBTint() const;         // Returns tint (green-magenta shift)
     
     // Error handling
     std::string lastError() const { return m_lastError; }
