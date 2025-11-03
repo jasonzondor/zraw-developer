@@ -79,6 +79,11 @@ ImageViewer::ImageViewer(QWidget* parent)
       m_showBefore(false) {
     setMouseTracking(true);
     
+    // Create crop overlay
+    m_cropOverlay = new CropOverlay(this);
+    m_cropOverlay->setVisible(false);
+    m_cropOverlay->raise();  // Ensure it's on top
+    
     // Create before/after toggle button
     m_beforeAfterButton = new QPushButton("Before", this);
     m_beforeAfterButton->setCheckable(true);
@@ -138,6 +143,69 @@ void ImageViewer::setShowBefore(bool show) {
         // Just redraw - getOutputTexture() will return the right texture
         update();
     }
+}
+
+void ImageViewer::setCropMode(bool enabled) {
+    m_cropOverlay->setCropMode(enabled);
+    // Disable panning when in crop mode
+    if (enabled) {
+        m_isPanning = false;
+    }
+    // Update crop overlay geometry to match image
+    if (enabled && m_pipeline) {
+        QRectF imageRect = getImageRect();
+        m_cropOverlay->setGeometry(imageRect.toRect());
+    }
+}
+
+QRectF ImageViewer::getImageRect() const {
+    if (!m_pipeline) {
+        return QRectF(0, 0, width(), height());
+    }
+    
+    int imgWidth = m_pipeline->width();
+    int imgHeight = m_pipeline->height();
+    
+    if (imgWidth == 0 || imgHeight == 0) {
+        return QRectF(0, 0, width(), height());
+    }
+    
+    // Calculate image aspect ratio
+    float imageAspect = static_cast<float>(imgWidth) / imgHeight;
+    float viewportAspect = static_cast<float>(width()) / height();
+    
+    float displayWidth, displayHeight;
+    float offsetX = 0, offsetY = 0;
+    
+    // Fit image to viewport while maintaining aspect ratio (at zoom = 1.0)
+    if (imageAspect > viewportAspect) {
+        // Image is wider - fit to width
+        displayWidth = width();
+        displayHeight = displayWidth / imageAspect;
+        offsetY = (height() - displayHeight) / 2.0f;
+    } else {
+        // Image is taller - fit to height
+        displayHeight = height();
+        displayWidth = displayHeight * imageAspect;
+        offsetX = (width() - displayWidth) / 2.0f;
+    }
+    
+    // Apply zoom (scale around center)
+    float centerX = offsetX + displayWidth / 2.0f;
+    float centerY = offsetY + displayHeight / 2.0f;
+    
+    displayWidth *= m_zoom;
+    displayHeight *= m_zoom;
+    
+    offsetX = centerX - displayWidth / 2.0f;
+    offsetY = centerY - displayHeight / 2.0f;
+    
+    // Apply pan offset (convert from normalized to pixels)
+    // Pan offset is stored in normalized coordinates (-1 to 1)
+    offsetX += m_panOffset.x() * width() / 2.0f;
+    offsetY -= m_panOffset.y() * height() / 2.0f;  // Y is flipped
+    
+    return QRectF(offsetX, offsetY, displayWidth, displayHeight);
 }
 
 void ImageViewer::initializeGL() {
@@ -215,6 +283,12 @@ void ImageViewer::resizeGL(int w, int h) {
     m_viewportY = 0;
     m_viewportWidth = w;
     m_viewportHeight = h;
+    
+    // Update crop overlay to match image bounds
+    if (m_cropOverlay->isCropMode() && m_pipeline) {
+        QRectF imageRect = getImageRect();
+        m_cropOverlay->setGeometry(imageRect.toRect());
+    }
 }
 
 bool ImageViewer::createDisplayShader() {
@@ -320,6 +394,12 @@ void ImageViewer::wheelEvent(QWheelEvent* event) {
     // Clamp zoom range
     m_zoom = std::max(0.1f, std::min(m_zoom, 10.0f));
     
+    // Update crop overlay position if in crop mode
+    if (m_cropOverlay->isCropMode() && m_pipeline) {
+        QRectF imageRect = getImageRect();
+        m_cropOverlay->setGeometry(imageRect.toRect());
+    }
+    
     update();
     event->accept();
 }
@@ -343,6 +423,12 @@ void ImageViewer::mouseMoveEvent(QMouseEvent* event) {
         
         m_panOffset += QPointF(dx, dy);
         m_lastMousePos = event->position();
+        
+        // Update crop overlay position if in crop mode
+        if (m_cropOverlay->isCropMode() && m_pipeline) {
+            QRectF imageRect = getImageRect();
+            m_cropOverlay->setGeometry(imageRect.toRect());
+        }
         
         update();
         event->accept();

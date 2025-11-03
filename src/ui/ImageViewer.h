@@ -5,6 +5,7 @@
 #include <QPointF>
 #include <QPushButton>
 #include "../gpu/GPUPipeline.h"
+#include "CropOverlay.h"
 #include <memory>
 
 namespace zraw {
@@ -27,6 +28,13 @@ public:
     
     // Before/After toggle
     void setShowBefore(bool show);
+    
+    // Crop controls
+    void setCropMode(bool enabled);
+    CropOverlay* cropOverlay() { return m_cropOverlay; }
+    
+    // Get image rectangle in widget coordinates (for crop overlay positioning)
+    QRectF getImageRect() const;
 
 protected:
     void initializeGL() override;
@@ -63,6 +71,9 @@ private:
     // Before/After state
     bool m_showBefore;
     QPushButton* m_beforeAfterButton;
+    
+    // Crop overlay
+    CropOverlay* m_cropOverlay;
     
     bool createDisplayShader();
     void renderTexture(GLuint texture);

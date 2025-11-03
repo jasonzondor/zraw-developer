@@ -45,6 +45,12 @@ public:
     void setWhites(float whites);
     void setBlacks(float blacks);
     
+    // Crop settings (normalized coordinates 0.0-1.0)
+    void setCrop(float left, float top, float right, float bottom);
+    void getCrop(float& left, float& top, float& right, float& bottom) const;
+    void resetCrop();
+    bool isCropped() const;
+    
     // Output mode: 0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES
     void setOutputMode(int mode);
     
@@ -89,6 +95,12 @@ private:
     float m_shadowContrast;
     float m_whites;
     float m_blacks;
+    
+    // Crop settings (normalized 0.0-1.0)
+    float m_cropLeft;
+    float m_cropTop;
+    float m_cropRight;
+    float m_cropBottom;
     
     // Output mode (0=SDR, 1=HDR PQ, 2=HDR HLG, 3=Full ACES)
     int m_outputMode;
