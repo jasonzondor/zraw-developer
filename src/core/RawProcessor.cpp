@@ -10,6 +10,10 @@ RawProcessor::RawProcessor()
       m_buffer(std::make_shared<ImageBuffer>()) {
 }
 
+void RawProcessor::setLinearOutput(bool enable) {
+    m_linearOutput = enable;
+}
+
 RawProcessor::~RawProcessor() {
 }
 
@@ -49,17 +53,36 @@ bool RawProcessor::processToRGB() {
         std::cout << "Detected Bayer sensor, using AHD demosaicing" << std::endl;
     }
     
-    // Use camera white balance - this is the most accurate
+    // Use camera white balance as the starting point
+    // LibRaw applies this correctly in camera RGB space before color matrix conversion
     params.use_camera_wb = 1;
+    
+    // Don't set user_mul - let LibRaw use camera WB
+    // We'll apply fine-tune adjustments in the GPU shader on top of this
     
     // Output 16-bit for better quality
     params.output_bps = 16;
     
-    // Use sRGB color space (can be changed to Adobe RGB if needed)
-    params.output_color = 1;  // 1=sRGB, 2=Adobe RGB
-    
     // No automatic brightness adjustment (we'll do this in GPU pipeline)
     params.no_auto_bright = 1;
+    
+    // Configure color space and gamma based on requested output mode
+    if (m_linearOutput) {
+        // Linear sRGB: sRGB primaries, but linear gamma (scene-referred)
+        params.output_color = 1;   // 1 = sRGB
+        params.gamm[0] = 1.0f;     // gamma power (linear)
+        params.gamm[1] = 1.0f;     // toe/offset
+        std::cout << "RawProcessor: using linear sRGB output" << std::endl;
+    } else {
+        // Display-ready sRGB from LibRaw (gamma-encoded)
+        params.output_color = 1;   // 1 = sRGB
+        // Leave LibRaw's default gamma (sRGB-like)
+        std::cout << "RawProcessor: using LibRaw sRGB output" << std::endl;
+    }
+    
+    // Debug: print color matrix info
+    std::cout << "Camera: " << m_libraw->imgdata.idata.make << " " << m_libraw->imgdata.idata.model << std::endl;
+    std::cout << "Color matrix available: " << (m_libraw->imgdata.color.cam_xyz[0][0] != 0.0f ? "yes" : "no") << std::endl;
     
     // Process to RGB
     ret = m_libraw->dcraw_process();
@@ -206,6 +229,36 @@ float RawProcessor::getCameraWBTint() const {
     std::cout << "Calculated tint: " << tint << " (r_norm=" << r_norm << ", b_norm=" << b_norm << ")" << std::endl;
     
     return tint;
+}
+
+void RawProcessor::getCameraWBMultipliers(float multipliers[4]) const {
+    if (!m_libraw) {
+        multipliers[0] = multipliers[1] = multipliers[2] = multipliers[3] = 1.0f;
+        return;
+    }
+    
+    // Get camera white balance multipliers from LibRaw
+    // cam_mul[0] = red, cam_mul[1] = green, cam_mul[2] = blue, cam_mul[3] = green2
+    multipliers[0] = m_libraw->imgdata.color.cam_mul[0];
+    multipliers[1] = m_libraw->imgdata.color.cam_mul[1];
+    multipliers[2] = m_libraw->imgdata.color.cam_mul[2];
+    multipliers[3] = m_libraw->imgdata.color.cam_mul[3];
+    
+    // Normalize by green (standard practice in RAW processing)
+    // Use G1 for normalization (G2 is often 0 for many cameras)
+    float g_norm = multipliers[1];
+    if (g_norm > 0.001f) {
+        multipliers[0] /= g_norm;
+        multipliers[1] /= g_norm;  // Will be 1.0
+        multipliers[2] /= g_norm;
+        if (multipliers[3] > 0.001f) {
+            multipliers[3] /= g_norm;
+        }
+    }
+    
+    std::cout << "Camera WB multipliers (normalized by G): R=" << multipliers[0] 
+              << " G=" << multipliers[1] << " B=" << multipliers[2] 
+              << " G2=" << multipliers[3] << std::endl;
 }
 
 void RawProcessor::setError(const std::string& error) {

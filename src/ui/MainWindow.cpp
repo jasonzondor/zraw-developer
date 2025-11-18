@@ -15,7 +15,8 @@ MainWindow::MainWindow(QWidget* parent)
       m_gpuPipeline(std::make_shared<GPUPipeline>()),
       m_xmpHandler(std::make_shared<XMPHandler>()),
       m_imageExporter(std::make_shared<ImageExporter>()),
-      m_loadingXMP(false) {
+      m_loadingXMP(false),
+      m_linearOutputEnabled(true) {
     
     std::cout << "MainWindow constructor started" << std::endl;
     
@@ -125,6 +126,14 @@ void MainWindow::createMenus() {
     auto* quitAction = fileMenu->addAction("&Quit");
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
+
+    // View/Settings menu for processing options
+    auto* viewMenu = menuBar()->addMenu("&View");
+    auto* linearOutputAction = viewMenu->addAction("Linear RAW Output");
+    linearOutputAction->setCheckable(true);
+    linearOutputAction->setChecked(m_linearOutputEnabled);
+    connect(linearOutputAction, &QAction::toggled,
+            this, &MainWindow::onLinearOutputToggled);
 }
 
 void MainWindow::openFile() {
@@ -163,6 +172,10 @@ bool MainWindow::loadImage(const QString& filepath) {
 bool MainWindow::processRawFile(const QString& filepath) {
     std::cout << "Processing RAW file: " << filepath.toStdString() << std::endl;
     
+    if (m_rawProcessor) {
+        m_rawProcessor->setLinearOutput(m_linearOutputEnabled);
+    }
+
     // Load raw file
     if (!m_rawProcessor->loadRaw(filepath.toStdString())) {
         std::cerr << "Failed to load RAW file" << std::endl;
@@ -202,6 +215,14 @@ bool MainWindow::processRawFile(const QString& filepath) {
     }
     std::cout << "Image uploaded to GPU" << std::endl;
     
+    // Get camera WB multipliers and pass to GPU pipeline
+    // The image from LibRaw is now neutral (no WB applied), so we need to
+    // apply camera WB in the shader
+    float cameraWBMult[4];
+    m_rawProcessor->getCameraWBMultipliers(cameraWBMult);
+    m_gpuPipeline->setCameraWBMultipliers(cameraWBMult[0], cameraWBMult[1], 
+                                          cameraWBMult[2], cameraWBMult[3]);
+    
     // Set pipeline in viewer
     m_viewer->setGPUPipeline(m_gpuPipeline);
     
@@ -211,12 +232,11 @@ bool MainWindow::processRawFile(const QString& filepath) {
     
     m_viewer->doneCurrent();
     
-    // Camera WB is already applied during RAW processing
-    // Set the camera WB values in the adjustment panel
+    // Set the camera WB values in the adjustment panel for UI display
     float cameraWBKelvin = m_rawProcessor->getCameraWBTemperature();
     float cameraWBTint = m_rawProcessor->getCameraWBTint();
     std::cout << "Camera WB - Temperature: " << cameraWBKelvin << "K, Tint: " << cameraWBTint 
-              << " (applied during RAW processing)" << std::endl;
+              << " (will be applied in GPU shader)" << std::endl;
     m_adjustmentPanel->setCameraWBKelvin(cameraWBKelvin);
     m_adjustmentPanel->setCameraWBTint(cameraWBTint);
     m_adjustmentPanel->setTemperature(0.0f);  // 0 = use camera WB as-is (relative adjustment)
@@ -456,6 +476,23 @@ void MainWindow::onCropReset() {
         if (!m_loadingXMP) {
             scheduleXMPSave();
         }
+    }
+}
+
+void MainWindow::onLinearOutputToggled(bool enabled) {
+    if (m_linearOutputEnabled == enabled) {
+        return;
+    }
+
+    m_linearOutputEnabled = enabled;
+
+    if (m_rawProcessor) {
+        m_rawProcessor->setLinearOutput(enabled);
+    }
+
+    // Re-process current file to update GPU pipeline with new base data
+    if (!m_currentFile.isEmpty()) {
+        processRawFile(m_currentFile);
     }
 }
 

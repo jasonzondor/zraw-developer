@@ -35,6 +35,10 @@ public:
     void setSharpness(float sharpness);
     void setTemperature(float temperature);
     void setTint(float tint);
+    
+    // Set camera WB multipliers (RGBG format, normalized by green)
+    // These are the base multipliers from the camera that we'll adjust
+    void setCameraWBMultipliers(float r, float g, float b, float g2);
     void setHighlights(float highlights);
     void setShadows(float shadows);
     void setVibrance(float vibrance);
@@ -86,6 +90,9 @@ private:
     float m_sharpness;
     float m_temperature;
     float m_tint;
+    
+    // Camera WB multipliers (normalized by green)
+    float m_cameraWBMult[4];  // R, G, B, G2
     float m_highlights;
     float m_shadows;
     float m_vibrance;

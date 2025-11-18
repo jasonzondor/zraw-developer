@@ -25,98 +25,34 @@ void AdjustmentPanel::createUI() {
     setStyleSheet("AdjustmentPanel { background-color: #2b2b2b; }");
     
     // ========================================================================
-    // SECTION 1: BASIC (Tone adjustments)
+    // SECTION 1: BASIC (WB + global tone)
     // ========================================================================
     auto* basicContent = new QVBoxLayout();
     basicContent->setSpacing(8);
     basicContent->setContentsMargins(12, 8, 12, 8);
-    
-    // Exposure
-    auto* exposureRow = createSliderRow("Exposure", &m_exposureSlider, &m_exposureLabel,
-                                        -300, 300, 0);
-    basicContent->addWidget(exposureRow);
-    connect(m_exposureSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateExposureLabel(value);
-        emit exposureChanged(value / 100.0f);
-    });
-    
-    // Contrast
-    auto* contrastRow = createSliderRow("Contrast", &m_contrastSlider, &m_contrastLabel,
-                                        -100, 100, 0);
-    basicContent->addWidget(contrastRow);
-    connect(m_contrastSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateContrastLabel(value);
-        emit contrastChanged(value / 100.0f);
-    });
-    
-    // Highlights
-    auto* highlightsRow = createSliderRow("Highlights", &m_highlightsSlider, &m_highlightsLabel,
-                                          -100, 100, 0);
-    basicContent->addWidget(highlightsRow);
-    connect(m_highlightsSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateHighlightsLabel(value);
-        emit highlightsChanged(static_cast<float>(value));
-    });
-    
-    // Shadows
-    auto* shadowsRow = createSliderRow("Shadows", &m_shadowsSlider, &m_shadowsLabel,
-                                       -100, 100, 0);
-    basicContent->addWidget(shadowsRow);
-    connect(m_shadowsSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateShadowsLabel(value);
-        emit shadowsChanged(static_cast<float>(value));
-    });
-    
-    // Whites
-    auto* whiteRow = createSliderRow("Whites", &m_whitesSlider, &m_whitesLabel,
-                                     -100, 100, 0);
-    basicContent->addWidget(whiteRow);
-    connect(m_whitesSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateWhitesLabel(value);
-        emit whitesChanged(static_cast<float>(value));
-    });
-    
-    // Blacks
-    auto* blackRow = createSliderRow("Blacks", &m_blacksSlider, &m_blacksLabel,
-                                     -100, 100, 0);
-    basicContent->addWidget(blackRow);
-    connect(m_blacksSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateBlacksLabel(value);
-        emit blacksChanged(static_cast<float>(value));
-    });
-    
-    auto* basicSection = createSection("Basic", basicContent);
-    mainLayout->addWidget(basicSection);
-    
-    // ========================================================================
-    // SECTION 2: COLOR
-    // ========================================================================
-    auto* colorContent = new QVBoxLayout();
-    colorContent->setSpacing(8);
-    colorContent->setContentsMargins(12, 8, 12, 8);
-    
+
     // Temperature (White Balance) - Kelvin values (2000K to 10000K)
     auto* temperatureRow = createSliderRow("Temperature", &m_temperatureSlider, &m_temperatureLabel,
                                            2000, 10000, 5500);  // 2000K to 10000K, default 5500K (daylight)
-    colorContent->addWidget(temperatureRow);
+    basicContent->addWidget(temperatureRow);
     connect(m_temperatureSlider, &QSlider::valueChanged, this, [this](int value) {
         updateTemperatureLabel(value);
         // Emit relative adjustment from camera WB
-        // Convert Kelvin difference to shader range (-100 to +100)
-        // Map ±2000K to ±100 (20K per unit)
+        // Higher Kelvin = warmer (positive shader value increases R, decreases B)
+        // Lower Kelvin = cooler (negative shader value decreases R, increases B)
         float kelvinDiff = static_cast<float>(value) - m_cameraWBKelvin;
-        float relativeAdjustment = kelvinDiff / 20.0f;
+        float relativeAdjustment = kelvinDiff / 20.0f; // Map ±2000K to ±100 (20K per unit)
         // Clamp to reasonable range
         if (relativeAdjustment < -100.0f) relativeAdjustment = -100.0f;
         if (relativeAdjustment > 100.0f) relativeAdjustment = 100.0f;
         emit temperatureChanged(relativeAdjustment);
     });
-    
+
     // Tint (White Balance) - Darktable scale: 0.5 to 1.5, with 1.0 = neutral
     // Use integer slider 500-1500 (divide by 1000 for display)
     auto* tintRow = createSliderRow("Tint", &m_tintSlider, &m_tintLabel,
                                     500, 1500, 1000);  // 0.5 to 1.5, default 1.0
-    colorContent->addWidget(tintRow);
+    basicContent->addWidget(tintRow);
     connect(m_tintSlider, &QSlider::valueChanged, this, [this](int value) {
         updateTintLabel(value);
         // Convert to Darktable scale (0.5 to 1.5)
@@ -125,54 +61,71 @@ void AdjustmentPanel::createUI() {
         float shaderTint = (tintValue - 1.0f) * 100.0f;
         emit tintChanged(shaderTint);
     });
-    
-    // Vibrance
-    auto* vibranceRow = createSliderRow("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
-                                        -100, 100, 0);
-    colorContent->addWidget(vibranceRow);
-    connect(m_vibranceSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateVibranceLabel(value);
-        emit vibranceChanged(static_cast<float>(value));
+
+    // Exposure
+    auto* exposureRow = createSliderRow("Exposure", &m_exposureSlider, &m_exposureLabel,
+                                        -300, 300, 0);
+    basicContent->addWidget(exposureRow);
+    connect(m_exposureSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateExposureLabel(value);
+        emit exposureChanged(value / 100.0f);
     });
-    
-    // Saturation
-    auto* saturationRow = createSliderRow("Saturation", &m_saturationSlider, &m_saturationLabel,
+
+    // Whites
+    auto* whiteRow = createSliderRow("Whites", &m_whitesSlider, &m_whitesLabel,
+                                     -100, 100, 0);
+    basicContent->addWidget(whiteRow);
+    connect(m_whitesSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateWhitesLabel(value);
+        emit whitesChanged(static_cast<float>(value));
+    });
+
+    // Blacks
+    auto* blackRow = createSliderRow("Blacks", &m_blacksSlider, &m_blacksLabel,
+                                     -100, 100, 0);
+    basicContent->addWidget(blackRow);
+    connect(m_blacksSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateBlacksLabel(value);
+        emit blacksChanged(static_cast<float>(value));
+    });
+
+    // Highlights
+    auto* highlightsRow = createSliderRow("Highlights", &m_highlightsSlider, &m_highlightsLabel,
                                           -100, 100, 0);
-    colorContent->addWidget(saturationRow);
-    connect(m_saturationSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateSaturationLabel(value);
-        emit saturationChanged(static_cast<float>(value));
+    basicContent->addWidget(highlightsRow);
+    connect(m_highlightsSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateHighlightsLabel(value);
+        emit highlightsChanged(static_cast<float>(value));
     });
-    
-    auto* colorSection = createSection("Color", colorContent);
-    mainLayout->addWidget(colorSection);
-    
-    // ========================================================================
-    // SECTION 3: DETAIL
-    // ========================================================================
-    auto* detailContent = new QVBoxLayout();
-    detailContent->setSpacing(8);
-    detailContent->setContentsMargins(12, 8, 12, 8);
-    
-    // Sharpness
-    auto* sharpnessRow = createSliderRow("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
-                                         0, 200, 0);
-    detailContent->addWidget(sharpnessRow);
-    connect(m_sharpnessSlider, &QSlider::valueChanged, this, [this](int value) {
-        updateSharpnessLabel(value);
-        emit sharpnessChanged(value / 100.0f);
+
+    // Shadows
+    auto* shadowsRow = createSliderRow("Shadows", &m_shadowsSlider, &m_shadowsLabel,
+                                       -100, 100, 0);
+    basicContent->addWidget(shadowsRow);
+    connect(m_shadowsSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateShadowsLabel(value);
+        emit shadowsChanged(static_cast<float>(value));
     });
-    
-    auto* detailSection = createSection("Detail", detailContent);
-    mainLayout->addWidget(detailSection);
-    
+
+    // Contrast
+    auto* contrastRow = createSliderRow("Contrast", &m_contrastSlider, &m_contrastLabel,
+                                        -100, 100, 0);
+    basicContent->addWidget(contrastRow);
+    connect(m_contrastSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateContrastLabel(value);
+        emit contrastChanged(value / 100.0f);
+    });
+
+    auto* basicSection = createSection("Basic", basicContent);
+    mainLayout->addWidget(basicSection);
+
     // ========================================================================
-    // SECTION 4: ADVANCED (Local contrast controls)
+    // SECTION 2: LOCAL CONTRAST (zones)
     // ========================================================================
     auto* advancedContent = new QVBoxLayout();
     advancedContent->setSpacing(8);
     advancedContent->setContentsMargins(12, 8, 12, 8);
-    
+
     // Highlight Contrast
     auto* highlightContrastRow = createSliderRow("Highlight Contrast", &m_highlightContrastSlider,
                                                  &m_highlightContrastLabel, -100, 100, 0);
@@ -181,7 +134,7 @@ void AdjustmentPanel::createUI() {
         updateHighlightContrastLabel(value);
         emit highlightContrastChanged(static_cast<float>(value));
     });
-    
+
     // Midtone Contrast
     auto* midtoneContrastRow = createSliderRow("Midtone Contrast", &m_midtoneContrastSlider,
                                                &m_midtoneContrastLabel, -100, 100, 0);
@@ -190,7 +143,7 @@ void AdjustmentPanel::createUI() {
         updateMidtoneContrastLabel(value);
         emit midtoneContrastChanged(static_cast<float>(value));
     });
-    
+
     // Shadow Contrast
     auto* shadowContrastRow = createSliderRow("Shadow Contrast", &m_shadowContrastSlider,
                                               &m_shadowContrastLabel, -100, 100, 0);
@@ -199,9 +152,56 @@ void AdjustmentPanel::createUI() {
         updateShadowContrastLabel(value);
         emit shadowContrastChanged(static_cast<float>(value));
     });
-    
-    auto* advancedSection = createSection("Advanced", advancedContent);
+
+    auto* advancedSection = createSection("Local Contrast", advancedContent);
     mainLayout->addWidget(advancedSection);
+
+    // ========================================================================
+    // SECTION 3: COLOR
+    // ========================================================================
+    auto* colorContent = new QVBoxLayout();
+    colorContent->setSpacing(8);
+    colorContent->setContentsMargins(12, 8, 12, 8);
+
+    // Vibrance
+    auto* vibranceRow = createSliderRow("Vibrance", &m_vibranceSlider, &m_vibranceLabel,
+                                        -100, 100, 0);
+    colorContent->addWidget(vibranceRow);
+    connect(m_vibranceSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateVibranceLabel(value);
+        emit vibranceChanged(static_cast<float>(value));
+    });
+
+    // Saturation
+    auto* saturationRow = createSliderRow("Saturation", &m_saturationSlider, &m_saturationLabel,
+                                          -100, 100, 0);
+    colorContent->addWidget(saturationRow);
+    connect(m_saturationSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateSaturationLabel(value);
+        emit saturationChanged(static_cast<float>(value));
+    });
+
+    auto* colorSection = createSection("Color", colorContent);
+    mainLayout->addWidget(colorSection);
+
+    // ========================================================================
+    // SECTION 4: DETAIL (sharpening)
+    // ========================================================================
+    auto* detailContent = new QVBoxLayout();
+    detailContent->setSpacing(8);
+    detailContent->setContentsMargins(12, 8, 12, 8);
+
+    // Sharpness
+    auto* sharpnessRow = createSliderRow("Sharpness", &m_sharpnessSlider, &m_sharpnessLabel,
+                                         0, 200, 0);
+    detailContent->addWidget(sharpnessRow);
+    connect(m_sharpnessSlider, &QSlider::valueChanged, this, [this](int value) {
+        updateSharpnessLabel(value);
+        emit sharpnessChanged(value / 100.0f);
+    });
+
+    auto* detailSection = createSection("Detail", detailContent);
+    mainLayout->addWidget(detailSection);
     
     // ========================================================================
     // CROP SECTION
@@ -566,6 +566,7 @@ float AdjustmentPanel::sharpness() const {
 
 float AdjustmentPanel::temperature() const {
     // Return relative adjustment from camera WB, scaled to shader range
+    // Higher Kelvin = warmer (positive), lower Kelvin = cooler (negative)
     float kelvinDiff = static_cast<float>(m_temperatureSlider->value()) - m_cameraWBKelvin;
     float relativeAdjustment = kelvinDiff / 20.0f;
     // Clamp to reasonable range
@@ -641,7 +642,8 @@ void AdjustmentPanel::setSharpness(float value) {
 
 void AdjustmentPanel::setTemperature(float value) {
     // Value is relative adjustment in shader range (-100 to +100)
-    // Convert back to Kelvin: value * 20K per unit
+    // Higher Kelvin = warmer (positive shader value)
+    // Convert back to Kelvin: scale by 20K per unit
     float kelvinDiff = value * 20.0f;
     int kelvin = static_cast<int>(m_cameraWBKelvin + kelvinDiff);
     m_temperatureSlider->blockSignals(true);

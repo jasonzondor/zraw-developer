@@ -47,6 +47,7 @@ private slots:
     void onCropModeChanged(bool enabled);
     void onCropChanged(float left, float top, float right, float bottom);
     void onCropReset();
+    void onLinearOutputToggled(bool enabled);
 
 private:
     ImageViewer* m_viewer;
@@ -60,6 +61,7 @@ private:
     QString m_currentFile;
     bool m_loadingXMP;  // Flag to prevent saving while loading
     QTimer* m_xmpSaveTimer;  // Timer for debounced XMP saving
+    bool m_linearOutputEnabled;
     
     void createUI();
     void createMenus();

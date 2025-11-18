@@ -29,6 +29,7 @@ uniform float contrast;
 uniform float sharpness;
 uniform float temperature;
 uniform float tint;
+uniform vec3 cameraWBMult;  // Camera WB multipliers (RGB, normalized by green)
 uniform float highlights;
 uniform float shadows;
 uniform float vibrance;
@@ -179,32 +180,59 @@ vec3 bradfordAdaptation(vec3 color, vec3 srcWhite, vec3 dstWhite) {
     return adaptMat * color;
 }
 
-// White balance - relative adjustment from camera WB
-// temp: relative adjustment (-100 to +100), 0 = neutral (camera WB)
-// tint: green-magenta shift (-100 to +100)
-vec3 applyWhiteBalance(vec3 color, float temp, float tint) {
-    // If neutral, skip
-    if (abs(temp) < 0.1 && abs(tint) < 0.1) {
-        return color;
+// Convert color temperature (Kelvin) to XYZ chromaticity using Planckian locus
+// Based on darktable's temperature module
+vec2 temperatureToXY(float temp) {
+    float x, y;
+    float temp2 = temp * temp;
+    float temp3 = temp2 * temp;
+    
+    // Approximation of Planckian locus in CIE 1960 UCS
+    // Valid for 1667K to 25000K
+    if (temp <= 4000.0) {
+        x = -0.2661239e9 / temp3 - 0.2343589e6 / temp2 + 0.8776956e3 / temp + 0.179910;
+    } else {
+        x = -3.0258469e9 / temp3 + 2.1070379e6 / temp2 + 0.2226347e3 / temp + 0.240390;
     }
     
-    // Simple RGB multiplier approach (like Lightroom)
-    // This is more intuitive and predictable than Bradford
-    float tempFactor = temp / 100.0;
-    float tintFactor = tint / 100.0;
+    if (temp <= 2222.0) {
+        y = -1.1063814 * x*x*x - 1.34811020 * x*x + 2.18555832 * x - 0.20219683;
+    } else if (temp <= 4000.0) {
+        y = -0.9549476 * x*x*x - 1.37418593 * x*x + 2.09137015 * x - 0.16748867;
+    } else {
+        y = 3.0817580 * x*x*x - 5.87338670 * x*x + 3.75112997 * x - 0.37001483;
+    }
     
-    // Temperature adjustment
-    // Positive = warmer (boost red/yellow, reduce blue)
-    // Negative = cooler (boost blue, reduce red/yellow)
-    vec3 result = color;
-    result.r *= 1.0 + tempFactor * 0.5;      // Red channel
-    result.b *= 1.0 - tempFactor * 0.5;      // Blue channel
+    return vec2(x, y);
+}
+
+// White balance - apply user adjustments on top of camera WB
+// Input: linear sRGB with camera WB already applied by LibRaw
+// cameraWBMult: passed for reference but not used (LibRaw already applied it)
+// temp: relative adjustment (-100 to +100), 0 = use camera WB as-is
+// tint: green-magenta shift (-100 to +100)
+vec3 applyWhiteBalance(vec3 color, vec3 cameraWBMult, float temp, float tint) {
+    vec3 result = max(color, 0.0);
     
-    // Tint adjustment  
-    // Positive = more green, Negative = more magenta
-    result.g *= 1.0 + tintFactor * 0.3;      // Green channel
+    // LibRaw already applied camera WB correctly in camera RGB space
+    // We just apply user fine-tune adjustments here in sRGB space
+    float tempNorm = temp / 100.0;  // -1..1
+    float tintNorm = tint / 100.0;  // -1..1
     
-    return result;
+    // Temperature: adjust red/blue ratio
+    // Positive = warmer (more red, less blue)
+    // Negative = cooler (less red, more blue)
+    const float TEMP_STRENGTH = 0.3;  // Gentler adjustment
+    result.r *= 1.0 + TEMP_STRENGTH * tempNorm;
+    result.b *= 1.0 - TEMP_STRENGTH * tempNorm;
+    
+    // Tint: adjust green
+    // Positive = more green
+    // Negative = more magenta (less green)
+    const float TINT_STRENGTH = 0.25;  // Gentler adjustment
+    result.g *= 1.0 + TINT_STRENGTH * tintNorm;
+    
+    return max(result, 0.0);
 }
 
 // ============================================================================
@@ -661,11 +689,9 @@ void main() {
     vec3 color = texture(inputTexture, TexCoord).rgb;
     
     // 2. White Balance FIRST (in linear space, before exposure)
-    //    Camera WB already applied, this is for fine-tuning
-    //    Temperature is relative (-100 to +100), 0 = neutral
-    if (abs(temperature) > 0.1 || abs(tint) > 0.1) {
-        color = applyWhiteBalance(color, temperature, tint);
-    }
+    //    Apply camera WB multipliers to neutral linear RGB, then user adjustments
+    //    Input is neutral (LibRaw WB disabled), so we ALWAYS apply this
+    color = applyWhiteBalance(color, cameraWBMult, temperature, tint);
     
     // 3. Exposure with per-channel highlight compression
     //    Apply exposure, then compress each channel independently
@@ -871,11 +897,16 @@ void main() {
         }
     }
     
-    // 10. Final clamp to valid display range [0, 1]
-    //     Should be mostly in-gamut after processing
+    // 10. Apply sRGB gamma encoding for display
+    //     Linear RGB looks very dark on standard monitors
+    //     sRGB gamma: ~2.2 with linear segment near black
     color = clamp(color, 0.0, 1.0);
+    vec3 srgb;
+    srgb.r = (color.r <= 0.0031308) ? color.r * 12.92 : 1.055 * pow(color.r, 1.0/2.4) - 0.055;
+    srgb.g = (color.g <= 0.0031308) ? color.g * 12.92 : 1.055 * pow(color.g, 1.0/2.4) - 0.055;
+    srgb.b = (color.b <= 0.0031308) ? color.b * 12.92 : 1.055 * pow(color.b, 1.0/2.4) - 0.055;
     
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(srgb, 1.0);
 }
 )";
 
@@ -893,6 +924,11 @@ GPUPipeline::GPUPipeline()
       m_outputMode(0),  // Default to SDR
       m_bypassAdjustments(false),
       m_vao(0), m_vbo(0) {
+    // Initialize camera WB multipliers to neutral
+    m_cameraWBMult[0] = 1.0f;  // R
+    m_cameraWBMult[1] = 1.0f;  // G
+    m_cameraWBMult[2] = 1.0f;  // B
+    m_cameraWBMult[3] = 1.0f;  // G2
 }
 
 GPUPipeline::~GPUPipeline() {
@@ -1044,6 +1080,15 @@ void GPUPipeline::setTint(float tint) {
     m_tint = tint;
 }
 
+void GPUPipeline::setCameraWBMultipliers(float r, float g, float b, float g2) {
+    m_cameraWBMult[0] = r;
+    m_cameraWBMult[1] = g;
+    m_cameraWBMult[2] = b;
+    m_cameraWBMult[3] = g2;
+    std::cout << "GPU Pipeline: Set camera WB multipliers: R=" << r 
+              << " G=" << g << " B=" << b << " G2=" << g2 << std::endl;
+}
+
 void GPUPipeline::setHighlights(float highlights) {
     m_highlights = highlights;
 }
@@ -1144,6 +1189,7 @@ bool GPUPipeline::process() {
     m_shader->setUniform("sharpness", m_bypassAdjustments ? 0.0f : m_sharpness);
     m_shader->setUniform("temperature", m_bypassAdjustments ? 0.0f : m_temperature);
     m_shader->setUniform("tint", m_bypassAdjustments ? 0.0f : m_tint);
+    m_shader->setUniform("cameraWBMult", m_cameraWBMult[0], m_cameraWBMult[1], m_cameraWBMult[2]);
     m_shader->setUniform("highlights", m_bypassAdjustments ? 0.0f : m_highlights);
     m_shader->setUniform("shadows", m_bypassAdjustments ? 0.0f : m_shadows);
     m_shader->setUniform("vibrance", m_bypassAdjustments ? 0.0f : m_vibrance);
